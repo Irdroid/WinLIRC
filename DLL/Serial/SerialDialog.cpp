@@ -21,138 +21,146 @@
 
 #include "stdafx.h"
 #include "SerialDialog.h"
-#include "Globals.h"
+//#include "Globals.h"
 
 #include "../Common/LIRCDefines.h"
 #include "Transmit.h"
 
+#include <vector>
+
+namespace
+{
+    /// Returns a vector containing names of all COM ports available on the system.
+    std::vector<CString> enumSerialPorts()
+    {
+        std::vector<CString> res;
+        std::vector<TCHAR> devices(1024);
+        DWORD n = 0;
+        while (true)
+        {
+            n = ::QueryDosDevice(nullptr, &devices[0], devices.size());
+            if (n == 0 && ::GetLastError() == ERROR_INSUFFICIENT_BUFFER)
+                devices.resize(2*devices.size());
+            else
+                break;
+        }
+        if (n != 0)
+        {
+            LPCTSTR s = &devices[0];
+            while (_tcslen(s) > 0)
+            {
+                if (_tcsnicmp(_T("com"), s, 3) == 0)
+                    res.push_back(s);
+                s += _tcslen(s) + 1;
+            }
+        }
+
+        return res;
+    }
+
+    /// Fills a combobox with values.
+    /// @param values - null-separated list of string to be added to \a cmb.
+    void fillCombo(CComboBox& cmb, LPCTSTR values)
+    {
+        while (_tcslen(values) > 0)
+        {
+            cmb.AddString(values);
+            values += _tcslen(values) + 1;
+        }
+    }
+
+    /// Returns an index of specified string. If the string is not found 0 is returned.
+    int selectString(CComboBox& cmb, LPCTSTR str)
+    {
+        int const x = cmb.FindStringExact(0, str);
+        return (x == CB_ERR) ? 0 : x;
+    }
+}
 
 // SerialDialog dialog
 
-IMPLEMENT_DYNAMIC(SerialDialog, CDialog)
-
-SerialDialog::SerialDialog(CWnd* pParent /*=NULL*/)
-	: CDialog(SerialDialog::IDD, pParent)
-{
-	animax			= FALSE;
-	deviceType		= -1;
-	virtualPulse	= 0;
-	transmitterPin	= -1;
-	hardwareCarrier	= FALSE;
-	inverted		= FALSE;
-}
-
-SerialDialog::~SerialDialog()
-{
-}
-
-void SerialDialog::DoDataExchange(CDataExchange* pDX)
-{
-	CDialog::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_PORT, port);
-	DDX_Control(pDX, IDC_SPEED, speed);
-	DDX_Control(pDX, IDC_SENSE, sense);
-	DDX_Radio(pDX, IDC_RADIORX, deviceType);
-	DDX_Radio(pDX, IDC_RADIODTR, transmitterPin);
-	DDX_Check(pDX, IDC_CHECKANIMAX, animax);
-	DDX_Check(pDX, IDC_CHECKHARDCARRIER, hardwareCarrier);
-	DDX_Check(pDX, IDC_INVERTED, inverted);
-	DDX_Text(pDX, IDC_VIRTPULSE, virtualPulse);
-	DDV_MinMaxInt(pDX, virtualPulse, 0, 16777215);
-}
-
-
-BEGIN_MESSAGE_MAP(SerialDialog, CDialog)
-	ON_BN_CLICKED(IDC_RADIORX, &SerialDialog::OnBnClickedRadiorx)
-	ON_BN_CLICKED(IDC_RADIODCD, &SerialDialog::OnBnClickedRadiodcd)
-	ON_BN_CLICKED(IDOK, &SerialDialog::OnBnClickedOk)
-END_MESSAGE_MAP()
-
+SerialDialog::SerialDialog()
+    : cmbPortIndex_(0)
+    , cmbSpeedIndex_(0)
+    , cmbSenseIndex_(0)
+    , intVirtualPulse_(0)
+    , bAnimax_(FALSE)
+    , inverted(FALSE)
+    , hardwareCarrier(FALSE)
+    , transmitterPin(-1)
+    , deviceType(-1)
+{ }
 
 // SerialDialog message handlers
 
-BOOL SerialDialog::OnInitDialog() {
+LRESULT SerialDialog::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
+{
+    DoDataExchange(FALSE);
 
-	//===========
-	CComboBox *p;
-	int x;
-	//===========
+    std::vector<CString> comPorts = enumSerialPorts();
+    for (std::vector<CString>::iterator i = comPorts.begin(); i != comPorts.end(); ++i)
+    {
+        cmbPort_.AddString(*i);
+    }
 
-	CDialog::OnInitDialog();
+    TCHAR const speeds[] = _T("1200\0002400\0004800\0009600\00014400\00019200\00038400\00056000\00057600\000115200\000128000\000256000\000");
+    fillCombo(cmbSpeed_, speeds);
 
-	settings.loadSettings();
+    TCHAR const senses[] = _T("Autodetect\0000 (Low)\0001 (High)\000");
+    fillCombo(cmbSense_, senses);
 
-	p = (CComboBox *)GetDlgItem(IDC_PORT);
-	x = p->FindStringExact(0,settings.port);
+    settings.loadSettings();
 
-	if(x != CB_ERR) {
-		p->SetCurSel(x);
-	}
-	else {
-		p->SetCurSel(0);
-	}
+    cmbPortIndex_  = selectString(cmbPort_, settings.port);
+    cmbSpeedIndex_ = selectString(cmbSpeed_, settings.speed);
+    cmbSenseIndex_ = settings.sense + 1;
 
-	p = (CComboBox *)GetDlgItem(IDC_SPEED);
-	x = p->FindStringExact(0,settings.speed);
+    bAnimax_         = settings.animax;
+    hardwareCarrier  = settings.transmitterType & HARDCARRIER;
+    transmitterPin   = (settings.transmitterType & TXTRANSMITTER)>>1;
+    inverted         = (settings.transmitterType & INVERTED)>>2;
+    intVirtualPulse_ = settings.virtualPulse;
+    deviceType       = settings.deviceType;
 
-	if(x != CB_ERR) {
-		p->SetCurSel(x);
-	}
-	else {
-		p->SetCurSel(0);
-	}
+    DoDataExchange(FALSE);
 
-	((CComboBox *)GetDlgItem(IDC_SENSE))->SetCurSel(settings.sense+1);
-
-	animax			= settings.animax;
-	hardwareCarrier	= settings.transmitterType & HARDCARRIER;
-	transmitterPin	= (settings.transmitterType & TXTRANSMITTER)>>1;
-	inverted		= (settings.transmitterType & INVERTED)>>2;
-	virtualPulse	= settings.virtualPulse;
-	deviceType		= settings.deviceType;
-
-	UpdateData(FALSE);
-
-	OnBnClickedRadiorx();
-
-	return TRUE;
+    return TRUE;
 }
 
-void SerialDialog::OnBnClickedRadiorx()
+LRESULT SerialDialog::OnBnClickedRadiorx(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-	UpdateData(TRUE);
-	GetDlgItem(IDC_SENSE)->EnableWindow(deviceType);
-	GetDlgItem(IDC_VIRTPULSE)->EnableWindow(!deviceType);
-	GetDlgItem(IDC_CHECKANIMAX)->EnableWindow(deviceType);
+	DoDataExchange(TRUE);
+	cmbSense_.EnableWindow(deviceType);
+    editVirtualPulse_.EnableWindow(!deviceType);
+	chkAnimax_.EnableWindow(deviceType);
+    return 0;
 }
 
-void SerialDialog::OnBnClickedRadiodcd()
+LRESULT SerialDialog::OnOK(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-	OnBnClickedRadiorx();
+    DoDataExchange(TRUE);
+    settings.transmitterType = (inverted<<2)|(transmitterPin<<1)|hardwareCarrier;
+
+    int sense = cmbSenseIndex_;//.GetCurSel();
+    if (sense == 1 || sense == 2)
+        --sense;
+    else
+        sense = -1;
+    settings.sense = sense;
+
+    cmbPort_.GetLBText(cmbPortIndex_, settings.port);
+    cmbSpeed_.GetLBText(cmbSpeedIndex_, settings.speed);
+    settings.deviceType   = deviceType;
+    settings.virtualPulse = intVirtualPulse_;
+    settings.animax       = bAnimax_;
+
+    settings.saveSettings();
+    EndDialog(wID);
+    return 0;
 }
 
-void SerialDialog::OnBnClickedOk()
+LRESULT SerialDialog::OnCancel(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-	//===========
-	CString temp;
-	//===========
-
-	OnOK();
-
-	settings.transmitterType = (inverted<<2)|(transmitterPin<<1)|hardwareCarrier;
-
-	int sense=((CComboBox *)GetDlgItem(IDC_SENSE))->GetCurSel();
-	if(sense>=1 && sense<=2) sense--;
-	else sense=-1;
-	settings.sense=sense;
-
-	port.GetWindowText(temp);
-	settings.port			= temp;
-	speed.GetWindowText(temp);
-	settings.speed			= temp;	
-	settings.deviceType		= deviceType;					
-	settings.virtualPulse	= virtualPulse;
-	settings.animax			= animax;
-
-	settings.saveSettings();
+    EndDialog(wID);
+    return 0;
 }

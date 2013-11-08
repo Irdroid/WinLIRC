@@ -21,42 +21,147 @@
  * RX device, some other stuff Copyright (C) 2002 Alexander Nesterovsky <Nsky@users.sourceforge.net>
  */
 
-#ifndef IRDRIVER_H
-#define IRDRIVER_H
+#pragma once
 
-class CIRDriver {
+class Settings;
+
+struct SerialPortTraits
+{
+    typedef HANDLE HandleType;
+
+    static HandleType invalidValue() { return nullptr; }
+    static void close(HandleType h) { ::CloseHandle(h); }
+};
+
+struct EventTraits
+{
+    typedef HANDLE HandleType;
+
+    static HandleType invalidValue() { return nullptr; }
+    static void close(HandleType h) { ::CloseHandle(h); }
+};
+
+template <typename HandleTraits>
+class UniqueHandle
+{
+    typedef HandleTraits Traits;
+    typedef typename Traits::HandleType HandleType;
+
+    UniqueHandle(UniqueHandle const&); // not copyable
+    void operator=(UniqueHandle const&); // not assignable
 
 public:
-	CIRDriver();
-	~CIRDriver();
 
-	bool			InitPort();
-	void			ResetPort();
-	void			ThreadProc();
-	unsigned long	readData(unsigned long maxusec);
-	bool			dataReady();
-	bool			getData(UINT *out);
-	void			waitTillDataIsReady(int maxUSecs);
+    explicit UniqueHandle(HandleType h = Traits::invalidValue())
+        : handle_(h)
+    { }
+
+    ~UniqueHandle()
+    {
+        close();
+    }
+
+    UniqueHandle(UniqueHandle&& other)
+        : handle_(other.release())
+    { }
+
+    UniqueHandle& operator=(UniqueHandle&& rhs)
+    {
+        if (this != &rhs)
+        {
+            close();
+            handle_ = rhs.release();
+        }
+        return *this;
+    }
+
+    HandleType get() const { return handle_; }
+
+    struct S { int i; };
+    typedef int S::* safe_bool;
+
+    operator safe_bool() const
+    {
+        return handle_ == Traits::invalidValue()
+            ? nullptr
+            : &S::i;
+    }
+
+    HandleType release()
+    {
+        HandleType const res = handle_;
+        handle_ = Traits::invalidValue();
+        return res;
+    }
+
+    void close()
+    {
+        if (handle_ != Traits::invalidValue())
+            Traits::close(release());
+    }
 
 private:
 
-	void			setData(UINT data);
-
-	//==========================
-	int			sense;
-	int			devicetype;		
-	int			virtpulse;		
-	OVERLAPPED	ov;
-	HANDLE		hPort;
-	//==========================
-	UINT		dataBuffer[256];
-	UCHAR		bufferStart;
-	UCHAR		bufferEnd;
-	//==========================
-	CWinThread *IRThreadHandle;
-	CEvent		IRThreadEvent;
-	HANDLE		hDataReadyEvent;
-	//==========================
+    HandleType handle_;
 };
 
-#endif
+struct DataBuffer
+{
+    DataBuffer()
+        : start_(0)
+        , end_(0)
+    { }
+
+    bool dataReady() const { return start_ != end_; }
+
+    void pushData(UINT val) { data_[end_++] = val; }
+    bool popData(UINT& out)
+    {
+        if (dataReady())
+        {
+            //yes start_ will wrap around with only 8 bits, that's what we want
+            out = data_[start_++];
+            return true;
+        }
+        return false;
+    }
+
+    UCHAR start_;
+    UCHAR end_;
+    UINT data_[256];
+};
+
+class CIRDriver
+{
+public:
+    CIRDriver();
+    ~CIRDriver();
+
+    bool start(HANDLE threadExitEvent);
+    void stop();
+
+    uint32_t readData(uint32_t maxusec);
+    bool     dataReady() const;
+    bool     getData(UINT& out);
+    bool     waitTillDataIsReady(uint32_t maxUSecs) const;
+
+private:
+
+    UniqueHandle<SerialPortTraits> initPort(Settings& settings) const;
+    void  resetPort();
+    void  setData(UINT data);
+    DWORD threadProc(Settings const& settings) const;
+
+    //==========================
+    //int32_t devicetype;
+    //int32_t virtpulse;
+    //==========================
+    mutable DataBuffer  dataBuffer; // thread safe!
+    //==========================
+    UniqueHandle<SerialPortTraits> hPort;
+    UniqueHandle<EventTraits> hDataReadyEvent;
+    UniqueHandle<EventTraits> threadExitEvent_;
+    //==========================
+
+    std::thread irThread_;
+};

@@ -19,8 +19,8 @@
  * Copyright (C) 2010 Ian Curtis
  */
 
+#include "stdafx.h"
 #include "Globals.h"
-#include <stdio.h>
 #include "SerialDialog.h"
 #include "irdriver.h"
 
@@ -31,64 +31,50 @@
 #include "../Common/WLPluginAPI.h"
 #include "Transmit.h"
 
-WL_API int init(HANDLE exitEvent) {
+WL_API int init(HANDLE exitEvent)
+{
+    initHardwareStruct();
+    init_rec_buffer();
 
-	threadExitEvent	= exitEvent;
-
-	initHardwareStruct();
-	init_rec_buffer();
-
-	irDriver = new CIRDriver();
-	if(irDriver->InitPort()) return 1;
-
-	return 0;
+    return irDriver.start(exitEvent);
 }
 
-WL_API void deinit() {
-
-	threadExitEvent = NULL;	//this one is created outside the DLL
-
-	if(irDriver) {
-		delete irDriver;
-		irDriver = NULL;
-	}
+WL_API void deinit()
+{
+    irDriver.stop();
 }
 
-WL_API int hasGui() {
-
+WL_API int hasGui()
+{
 	return TRUE;
 }
 
-WL_API void loadSetupGui() {
-
-	AFX_MANAGE_STATE(AfxGetStaticModuleState());
-	SerialDialog serialDialog;
-	serialDialog.DoModal();
+WL_API void loadSetupGui()
+{
+    SerialDialog serialDialog;
+    serialDialog.DoModal();
 }
 
-WL_API int sendIR(struct ir_remote *remotes, struct ir_ncode *code, int repeats) {
-
+WL_API int sendIR(ir_remote* remotes, ir_ncode* code, int repeats)
+{
 	return Transmit(code,remotes,repeats);
 }
 
-WL_API int decodeIR(struct ir_remote *remotes, char *out) {
+WL_API int decodeIR(ir_remote* remotes, char* out)
+{
+    if (!irDriver.waitTillDataIsReady(0))
+        return 0;
 
-	if(irDriver) {
-		irDriver->waitTillDataIsReady(0);
-	}
+    clear_rec_buffer();
 
-	clear_rec_buffer();
+    if (decodeCommand(remotes, out)) 
+        return 1;
 
-	if(decodeCommand(remotes, out)) {
-		return 1;
-	}
-	
-	return 0;
+    return 0;
 }
 
-WL_API struct hardware* getHardware() {
-
-	initHardwareStruct();	//make sure values are setup
-
-	return &hw;
+WL_API hardware* getHardware()
+{
+    initHardwareStruct();	//make sure values are setup
+    return &hw;
 }

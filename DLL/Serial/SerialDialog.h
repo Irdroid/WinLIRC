@@ -20,40 +20,79 @@
  */
 
 #pragma once
-#include "afxwin.h"
+
 #include "resource.h"
+#include "Settings.h"
 
-
-// SerialDialog dialog
-
-class SerialDialog : public CDialog
+class SerialDialog
+    : public CDialogImpl<SerialDialog>
+    , public CWinDataExchange<SerialDialog>
 {
-	DECLARE_DYNAMIC(SerialDialog)
-
 public:
-	SerialDialog(CWnd* pParent = NULL);   // standard constructor
-	virtual ~SerialDialog();
+    SerialDialog();
 
-// Dialog Data
-	enum { IDD = IDD_SERIALDIALOG };
+    enum { IDD = IDD_SERIALDIALOG };
 
-protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
-	virtual BOOL OnInitDialog();
-	
 private:
-	CComboBox port;
-	CComboBox speed;
-	CComboBox sense;
-	BOOL animax;
-	BOOL inverted;
-	BOOL hardwareCarrier;
-	int virtualPulse;
-	int transmitterPin;
-	int	deviceType;
-public:
-	afx_msg void OnBnClickedRadiorx();
-	afx_msg void OnBnClickedRadiodcd();
-	afx_msg void OnBnClickedOk();
-	DECLARE_MESSAGE_MAP()
+
+    LRESULT OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
+    LRESULT OnBnClickedRadiorx(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnBnClickedRadiodcd(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnOK(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnCancel(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    BEGIN_MSG_MAP(SerialDialog)
+        MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
+        COMMAND_HANDLER(IDC_RADIORX, BN_CLICKED, OnBnClickedRadiorx)
+        COMMAND_HANDLER(IDC_RADIODCD, BN_CLICKED, OnBnClickedRadiorx)
+        COMMAND_ID_HANDLER(IDOK, OnOK)
+        COMMAND_ID_HANDLER(IDCANCEL, OnCancel)
+    END_MSG_MAP()
+
+    BEGIN_DDX_MAP(SerialDialog)
+        DDX_CONTROL_HANDLE(IDC_PORT, cmbPort_)
+        DDX_COMBO_INDEX(IDC_PORT, cmbPortIndex_)
+
+        DDX_CONTROL_HANDLE(IDC_SPEED, cmbSpeed_)
+        DDX_COMBO_INDEX(IDC_SPEED, cmbSpeedIndex_)
+
+        DDX_CONTROL_HANDLE(IDC_SENSE, cmbSense_)
+        DDX_COMBO_INDEX(IDC_SENSE, cmbSenseIndex_)
+
+        DDX_CONTROL_HANDLE(IDC_VIRTPULSE, editVirtualPulse_)
+        DDX_INT(IDC_VIRTPULSE, intVirtualPulse_)
+        DDX_INT_RANGE(IDC_VIRTPULSE, intVirtualPulse_, 0, 16777215)
+
+        DDX_CONTROL_HANDLE(IDC_CHECKANIMAX, chkAnimax_)
+        DDX_CHECK(IDC_CHECKANIMAX, bAnimax_)
+
+        DDX_CHECK(IDC_INVERTED, inverted)
+        DDX_CHECK(IDC_CHECKHARDCARRIER, hardwareCarrier)
+        DDX_RADIO(IDC_RADIODTR, transmitterPin)
+        DDX_RADIO(IDC_RADIORX, deviceType)
+    END_DDX_MAP()
+
+private:
+
+    CComboBox cmbPort_;
+    int cmbPortIndex_;
+
+    CComboBox cmbSpeed_;
+    int cmbSpeedIndex_;
+
+    CComboBox cmbSense_;
+    int cmbSenseIndex_;
+
+    CEdit editVirtualPulse_;
+    int intVirtualPulse_;
+
+    CButton chkAnimax_;
+    BOOL bAnimax_;
+
+    BOOL inverted;
+    BOOL hardwareCarrier;
+    int transmitterPin;
+    int	deviceType;
+
+    Settings settings;
 };

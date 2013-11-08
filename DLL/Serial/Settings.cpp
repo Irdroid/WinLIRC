@@ -19,13 +19,8 @@
  * Copyright (C) 2010 Ian Curtis
  */
 
+#include "stdafx.h"
 #include "Settings.h"
-#include <stdio.h>
-
-Settings::Settings() {
-
-	loadSettings();
-}
 
 void Settings::saveSettings() {
 

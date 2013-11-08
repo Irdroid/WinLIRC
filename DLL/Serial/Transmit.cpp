@@ -1,5 +1,4 @@
-#include <windows.h>
-
+#include "stdafx.h"
 #include "../Common/LIRCDefines.h"
 #include "../Common/Send.h"
 
@@ -269,4 +268,3 @@ int Transmit(ir_ncode *data,struct ir_remote *rem, int repeats)
 
 	return success;
 }
-

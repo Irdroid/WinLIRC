@@ -24,151 +24,121 @@
 #include "stdafx.h"
 #include "irdriver.h"
 #include "Globals.h"
-#include <tchar.h>
 #include "../Common/LIRCDefines.h"
 #include "Transmit.h"
-	
-unsigned int IRThread(void *drv) {
-	((CIRDriver *)drv)->ThreadProc();
-	return 0;
-}
+#include "Settings.h"
+
+#include <cassert>
 
 CIRDriver::CIRDriver()
-{
-	hPort			= NULL;
-	IRThreadHandle	= NULL;
-	hDataReadyEvent	= CreateEvent(NULL,TRUE,FALSE,NULL);
-	
-	bufferStart		= 0;
-	bufferEnd		= 0;
+{ }
 
-	memset(&ov,0,sizeof(OVERLAPPED));
+bool CIRDriver::start(HANDLE threadExitEvent)
+{
+    if (threadExitEvent_ || hDataReadyEvent || hPort)
+        return false;
+
+    try
+    {
+        threadExitEvent_ = UniqueHandle<EventTraits>(threadExitEvent);
+        hDataReadyEvent  = UniqueHandle<EventTraits>(CreateEvent(NULL,TRUE,FALSE,NULL));
+
+        dataBuffer = DataBuffer();
+        Settings settings;
+        hPort = initPort(settings);
+
+        irThread_ = std::thread([this, settings]() { this->threadProc(settings); });
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+void CIRDriver::stop()
+{
+    if (threadExitEvent_)
+    {
+        ::SetEvent(threadExitEvent_.release());
+        if (irThread_.joinable())
+            irThread_.join();
+        hDataReadyEvent.close();
+        hPort.close();
+    }
 }
 
 CIRDriver::~CIRDriver()
 {
-	//DEBUG("~CIRDriver\n");
-	ResetPort();
-	KillThread(&IRThreadHandle,&IRThreadEvent);
-	if(hDataReadyEvent) CloseHandle(hDataReadyEvent);
+    stop();
 }
 
-bool CIRDriver::InitPort()
+UniqueHandle<SerialPortTraits> CIRDriver::initPort(Settings& settings) const
 {
-	KillThread(&IRThreadHandle,&IRThreadEvent);
+    settings.loadSettings();
 
-	bufferStart	= 0;
-	bufferEnd	= 0;
-	
-	if(ov.hEvent)
-	{
-		SetEvent(ov.hEvent);	// singal it
-		Sleep(100);				// wait a tiny bit
-		CloseHandle(ov.hEvent);	// and close it
-		ov.hEvent=NULL;
-	}
+    UniqueHandle<SerialPortTraits> hSerialPort(CreateFile(
+        settings.port,
+        GENERIC_READ | GENERIC_WRITE,
+        0,
+        0,
+        OPEN_EXISTING,
+        FILE_FLAG_OVERLAPPED,
+        0));
 
-	if(hPort)
-	{
-		SetCommMask(hPort,0);	// stop any waiting on the port
-		Sleep(100);				// wait a tiny bit
-		CloseHandle(hPort);		// and close it
-		hPort=NULL;
-	}
+    if (hSerialPort)
+    {
+        DCB dcb;
+        if (!GetCommState(hSerialPort.get(), &dcb))
+        {
+            //DEBUG("GetCommState failed.\n");
+            hSerialPort.close();
+        }
+        else
+        {
+            dcb.fDtrControl = settings.animax
+                ? DTR_CONTROL_ENABLE  //set DTR high, the animax receiver needs this for power
+                : DTR_CONTROL_DISABLE; // set the transmit LED to off initially.
+            dcb.fRtsControl = RTS_CONTROL_ENABLE;
 
-	if((hPort=CreateFile(
-		settings.port,GENERIC_READ | GENERIC_WRITE,
-		0,0,OPEN_EXISTING,FILE_FLAG_OVERLAPPED,0))==INVALID_HANDLE_VALUE)
-	{
-		hPort=NULL;
-		return false;
-	}
+            dcb.BaudRate = _tstoi(settings.speed);
 
-	DCB dcb;
-	if(!GetCommState(hPort,&dcb))
-	{
-		CloseHandle(hPort);
-		hPort=NULL;
-		return false;
-	}
-	if (settings.animax) dcb.fDtrControl=DTR_CONTROL_ENABLE; //set DTR high, the animax receiver needs this for power
-	else
-		dcb.fDtrControl=DTR_CONTROL_DISABLE; // set the transmit LED to off initially.
-	dcb.fRtsControl=RTS_CONTROL_ENABLE;
+            if (!SetCommState(hSerialPort.get(), &dcb))
+            {
+                //DEBUG("SetCommState failed.\n");
+                hSerialPort.close();
+            }
+            else
+            {
+                SetTransmitPort(hSerialPort.get(), settings.transmitterType);
 
-	dcb.BaudRate = _tstoi(settings.speed);
-	devicetype = settings.deviceType;				
-	virtpulse = settings.virtualPulse;		
-
-	if(!SetCommState(hPort,&dcb))
-	{
-		CloseHandle(hPort);
-		hPort=NULL;
-		//DEBUG("SetCommState failed.\n");
-		return false;
-	}
-
-	SetTransmitPort(hPort,settings.transmitterType);
-
-	if(settings.sense==-1)
-	{
-		/* Wait for receiver to settle (since we just powered it on) */
-		Sleep(1000);
-		DWORD state;
-		if(!GetCommModemStatus(hPort,&state))
-		{
-			CloseHandle(hPort);
-			hPort=NULL;
-			return false;
-		}
-		sense=(state & MS_RLSD_ON) ? 1 : 0;
-		//DEBUG("Sense set to %d\n",sense);
-	}
-	else
-		sense = settings.sense;
-
-	if((ov.hEvent=CreateEvent(NULL,TRUE,FALSE,NULL))==NULL)
-	{
-		CloseHandle(hPort);
-		hPort=NULL;
-		return false;
-	}
-
-	/* Start the thread */
-	/* THREAD_PRIORITY_TIME_CRITICAL combined with the REALTIME_PRIORITY_CLASS */
-	/* of this program results in the highest priority (26 out of 31) */
-	if((IRThreadHandle=
-		AfxBeginThread(IRThread,(void *)this,THREAD_PRIORITY_TIME_CRITICAL))==NULL)
-	{
-		CloseHandle(hPort);
-		CloseHandle(ov.hEvent);
-		hPort=ov.hEvent=NULL;
-		return false;
-	}
-
-	//DEBUG("Port initialized.\n");
-	
-	return true;
+                if (settings.sense == -1)
+                {
+                    /* Wait for receiver to settle (since we just powered it on) */
+                    Sleep(1000);
+                    DWORD state;
+                    if (GetCommModemStatus(hSerialPort.get(), &state))
+                    {
+                        settings.sense = (state & MS_RLSD_ON) ? 1 : 0;
+                        //DEBUG("Sense set to %d\n",sense);
+                    }
+                }
+            }
+        }
+    }
+    return hSerialPort;
 }
 
-void CIRDriver::ResetPort(void)
+void CIRDriver::resetPort()
 {
 	//DEBUG("Resetting port\n");
-	
-	KillThread(&IRThreadHandle,&IRThreadEvent);
-	
-	if(ov.hEvent) {
-		CloseHandle(ov.hEvent);
-		ov.hEvent=NULL;
-	}
-	if(hPort) {
-		CloseHandle(hPort);
-		hPort=NULL;
-	}
+    hPort.close();
 }
 
-void CIRDriver::ThreadProc(void)
+DWORD CIRDriver::threadProc(Settings const& s) const
 {
+    int32_t sense = s.sense;
+    ::SetThreadPriority(GetCurrentThread(), 16/*THREAD_BASE_PRIORITY_IDLE | THREAD_PRIORITY_TIME_CRITICAL*/);
 	/* Virtually no error checking is done here, because */
 	/* it's pretty safe to assume that everything works, */
 	/* and we have nowhere to report errors anyway.      */
@@ -177,26 +147,35 @@ void CIRDriver::ThreadProc(void)
 	/* last too long before wrapping around (is that true?     */
 	/* is it really only a 32 bit timer or a true 64 bit one?) */
 
-	__int64 hr_time, hr_lasttime, hr_freq;	// high-resolution
+	LARGE_INTEGER hr_time, hr_lasttime, hr_freq;	// high-resolution
 	time_t lr_time, lr_lasttime;			// low-resolution
 
+    assert(hPort);
+
 	DWORD status;
-	GetCommModemStatus(hPort, &status);
+	GetCommModemStatus(hPort.get(), &status);
 	int prev=(status & MS_RLSD_ON) ? 1 : 0;
 
 	/* Initialize timer stuff */
-	QueryPerformanceFrequency((LARGE_INTEGER *)&hr_freq);
+	QueryPerformanceFrequency(&hr_freq);
 
 	/* Get time (both LR and HR) */
 	time(&lr_lasttime);
-	QueryPerformanceCounter((LARGE_INTEGER *)&hr_lasttime);
+	QueryPerformanceCounter(&hr_lasttime);
 	
-	HANDLE events[2]={ov.hEvent,IRThreadEvent};
+    UniqueHandle<EventTraits> commIoEvent(CreateEvent(NULL,TRUE,FALSE,NULL));
+    if (!commIoEvent)
+        return 1;
+
+    OVERLAPPED ov = {0};
+    ov.hEvent = commIoEvent.get();
+
+	HANDLE const events[] = { ov.hEvent, threadExitEvent_.get() };
 
 	for(;;)
 	{
 		/* We want to be notified of DCD or RX changes */
-		if(SetCommMask(hPort, devicetype ? EV_RLSD : EV_RXCHAR)==0)	
+        if(SetCommMask(hPort.get(), s.deviceType ? EV_RLSD : EV_RXCHAR)==0)	
 		{
 			//DEBUG("SetCommMask returned zero, error=%d\n",GetLastError());
 		}
@@ -204,19 +183,19 @@ void CIRDriver::ThreadProc(void)
 		ResetEvent(ov.hEvent);
 		/* Start waiting for the event */
 		DWORD event;
-		if(WaitCommEvent(hPort,&event,&ov)==0 && GetLastError()!=997)
+		if(WaitCommEvent(hPort.get(),&event,&ov)==0 && GetLastError()!=997)
 		{
 			//DEBUG("WaitCommEvent error: %d\n",GetLastError());
 		}
 
 		/* Wait for the event to get triggered */
-		int res=WaitForMultipleObjects(2,events,FALSE,INFINITE);
+		DWORD const res = WaitForMultipleObjects(2,events,FALSE,INFINITE);
 		
 		/* Get time (both LR and HR) */
-		QueryPerformanceCounter((LARGE_INTEGER *)&hr_time);
+		QueryPerformanceCounter(&hr_time);
 		time(&lr_time);
 		
-		if(res==WAIT_FAILED)
+		if (res==WAIT_FAILED)
 		{
 			//DEBUG("Wait failed.\n");
 			continue;
@@ -225,8 +204,7 @@ void CIRDriver::ThreadProc(void)
 		if(res==(WAIT_OBJECT_0+1))
 		{
 			//DEBUG("IRThread terminating\n");
-			AfxEndThread(0);
-			return;
+			return 0;
 		}
 		
 		if(res!=WAIT_OBJECT_0)
@@ -236,8 +214,8 @@ void CIRDriver::ThreadProc(void)
 		}
 
 		int dcd;
-		if (devicetype) {				
-			GetCommModemStatus(hPort,&status);
+		if (s.deviceType) {
+			GetCommModemStatus(hPort.get(), &status);
 
 			dcd = (status & MS_RLSD_ON) ? 1 : 0;
 
@@ -252,7 +230,7 @@ void CIRDriver::ThreadProc(void)
 		}
 
 		int deltv=(int)(lr_time-lr_lasttime);
-		if (devicetype && (deltv>15)) {		
+		if (s.deviceType && (deltv>15)) {		
 			/* More than 15 seconds passed */
 			deltv=0xFFFFFF;
 			if(!(dcd^sense))
@@ -262,84 +240,83 @@ void CIRDriver::ThreadProc(void)
 				//DEBUG("sense was wrong!\n");
 			}
 		} else
-			deltv=(int)(((hr_time-hr_lasttime)*1000000) / hr_freq);
+            deltv=(int)(((hr_time.QuadPart-hr_lasttime.QuadPart)*1000000) / hr_freq.QuadPart);
 	
 		lr_lasttime=lr_time;
 		hr_lasttime=hr_time;
 		
 		int data;				
-		if (devicetype) {		
+		if (s.deviceType) {		
 			data = (dcd^sense) ? (deltv) : (deltv | 0x1000000);	
 
-			setData(data);
-			SetEvent(hDataReadyEvent);
+            dataBuffer.pushData(data);
+			SetEvent(hDataReadyEvent.get());
 		} else {
 			data = deltv;	
 
-			setData(data-100);						
-			setData(virtpulse | 0x1000000);
-			SetEvent(hDataReadyEvent);			
-			PurgeComm(hPort,PURGE_RXCLEAR);			
+			dataBuffer.pushData(data-100);
+            dataBuffer.pushData(s.virtualPulse | 0x1000000);
+			SetEvent(hDataReadyEvent.get());
+			PurgeComm(hPort.get(),PURGE_RXCLEAR);
 		}
 	}
+
+    return 0;
 }
 
-void CIRDriver::setData(UINT data) {
-
-	dataBuffer[bufferEnd] = data;
-	bufferEnd++;
-}
-
-bool CIRDriver::dataReady() {
-
-	if(bufferStart==bufferEnd) return false;
-	
-	return true;
-}
-
-bool CIRDriver::getData(UINT *out) {
-
-	if(!dataReady()) return false;
-
-	*out = dataBuffer[bufferStart];
-
-	bufferStart++;	//yes these will wrap around with only 8 bits, that's what we want
-
-	return true;
-}
-
-unsigned long CIRDriver::readData(unsigned long maxusec)
+void CIRDriver::setData(UINT data)
 {
-	UINT x=0;
-
-	waitTillDataIsReady(maxusec);
-
-	getData(&x);
-
-	return x;
+    dataBuffer.pushData(data);
 }
 
-void CIRDriver::waitTillDataIsReady(int maxUSecs) {
+bool CIRDriver::dataReady() const
+{
+    return dataBuffer.dataReady();
+}
 
-	HANDLE events[2]={hDataReadyEvent,threadExitEvent};
-	int evt;
-	if(threadExitEvent==NULL) evt=1;
-	else evt=2;
+bool CIRDriver::getData(UINT& out)
+{
+    return dataBuffer.popData(out);
+}
 
-	if(!dataReady())
-	{
-		ResetEvent(hDataReadyEvent);
-		int res;
-		if(maxUSecs)
-			res=WaitForMultipleObjects(evt,events,FALSE,(maxUSecs+500)/1000);
-		else
-			res=WaitForMultipleObjects(evt,events,FALSE,INFINITE);
-		if(res==(WAIT_OBJECT_0+1))
-		{
-			//DEBUG("Unknown thread terminating (readdata)\n");
-			AfxEndThread(0);
-			return;
-		}
-	}
+uint32_t CIRDriver::readData(uint32_t maxusec)
+{
+	if (waitTillDataIsReady(maxusec))
+    {
+	    UINT x = 0;
+	    getData(x);
+	    return x;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+/// @retval true if data is ready or waiting for data timed out.
+/// @retval false if wait was interrupted by threadExitEvent or there is no threadExitEvent.
+bool CIRDriver::waitTillDataIsReady(uint32_t maxUSecs) const
+{
+    // no event to notify us to stop working?
+    if (!threadExitEvent_)
+    {
+        return false;
+    }
+    else if (!dataReady())
+    {
+        ResetEvent(hDataReadyEvent.get());
+        DWORD const timeout = maxUSecs
+            ? (maxUSecs+500)/1000
+            : INFINITE;
+
+        HANDLE const events[] = { hDataReadyEvent.get(), threadExitEvent_.get() };
+        DWORD const res = WaitForMultipleObjects(2, events, false, timeout);
+        if (res == (WAIT_OBJECT_0+1))
+        {
+            //DEBUG("Unknown thread terminating (readdata)\n");
+            return false;
+        }
+    }
+    return true;
 }
 

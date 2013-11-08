@@ -19,6 +19,7 @@
  * Copyright (C) 2010 Ian Curtis
  */
 
+#include "stdafx.h"
 #include "Globals.h"
 
 #include "../Common/LIRCDefines.h"
@@ -27,43 +28,35 @@
 
 struct hardware hw;
 
-lirc_t readData(lirc_t timeout) {
-
-	if(!irDriver) return 0;
-
-	return irDriver->readData(timeout);
+lirc_t readData(lirc_t timeout)
+{
+    return irDriver.readData(timeout);
 }
 
-void wait_for_data(lirc_t timeout) {
-
-	if(!irDriver) return;
-
-	irDriver->waitTillDataIsReady(timeout);
+void wait_for_data(lirc_t timeout)
+{
+    irDriver.waitTillDataIsReady(timeout);
 }
 
-int data_ready() {
-
-	if(!irDriver) return 0;
-
-	if(irDriver->dataReady()) return 1;
-
-	return 0;
+int data_ready()
+{
+    return irDriver.dataReady();
 }
 
-void initHardwareStruct() {
+void initHardwareStruct()
+{
+    hw.decode_func	= &receive_decode;
+    hw.readdata		= &readData;
+    hw.wait_for_data= &wait_for_data;
+    hw.data_ready	= &data_ready;
+    hw.get_ir_code	= NULL;
 
-	hw.decode_func	= &receive_decode;
-	hw.readdata		= &readData;
-	hw.wait_for_data= &wait_for_data;
-	hw.data_ready	= &data_ready;
-	hw.get_ir_code	= NULL;
+    hw.features		= LIRC_CAN_REC_MODE2;
+    hw.send_mode	= 0;
+    hw.rec_mode		= LIRC_MODE_MODE2;
+    hw.code_length	= 0;
+    hw.resolution	= 0;
 
-	hw.features		= LIRC_CAN_REC_MODE2;
-	hw.send_mode	= 0;
-	hw.rec_mode		= LIRC_MODE_MODE2;
-	hw.code_length	= 0;
-	hw.resolution	= 0;
-
-	strcpy(hw.device,"hw");
-	strcpy(hw.name,"SerialDevice");
+    strcpy(hw.device, "hw");
+    strcpy(hw.name, "SerialDevice");
 }

@@ -19,19 +19,12 @@
  * Copyright (C) 2010 Ian Curtis
  */
 
-#ifndef SETTINGS_H
-#define SETTINGS_H
-
-#include "stdafx.h"
-#include <tchar.h>
+#pragma once
 
 class Settings 
 {
-
 public:
-	Settings();
-
-	void	saveSettings();			// to ini file
+	void	saveSettings(); // to ini file
 	void	loadSettings();
 
 	//========================
@@ -43,10 +36,4 @@ public:
 	int		virtualPulse;
 	int		sense;
 	//========================
-
-private:
-
 };
-
-#endif
-
