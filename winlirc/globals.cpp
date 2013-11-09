@@ -51,56 +51,18 @@ void winlirc_debug(const char *file, int line, char *format, ...)
 
 struct ir_remote *global_remotes=NULL;
 
-CWinThread *ServerThreadHandle=NULL;
+std::thread ServerThreadHandle;
 CEvent ServerThreadEvent;
 
 CCriticalSection CS_global_remotes;
 
 CIRConfig config;
 
-void KillThread(CWinThread **ThreadHandle, CEvent *ThreadEvent)
+void KillThread(std::thread& ThreadHandle, CEvent& ThreadEvent)
 {
-	while(*ThreadHandle!=NULL)
-	{
-		DWORD result=0;
-		if(GetExitCodeThread((*ThreadHandle)->m_hThread,&result)==0) 
-		{
-			WL_DEBUG("GetExitCodeThread failed, error=%d\n",GetLastError());
-			WL_DEBUG("(the thread may have already been terminated)\n");
-			return;
-		}
-		if(result==STILL_ACTIVE)
-		{
-			//printf("still active\n");
-			ThreadEvent->SetEvent();
-			if(WAIT_TIMEOUT==WaitForSingleObject((*ThreadHandle)->m_hThread,250)) break; //maybe we just need to give it some time to quit
-			ThreadEvent->ResetEvent();
-			*ThreadHandle=NULL;
-		}
-	}
-}
-
-void KillThread2(CWinThread **ThreadHandle, HANDLE ThreadEvent)
-{
-	while(*ThreadHandle!=NULL)
-	{
-		DWORD result=0;
-		if(GetExitCodeThread((*ThreadHandle)->m_hThread,&result)==0) 
-		{
-			WL_DEBUG("GetExitCodeThread failed, error=%d\n",GetLastError());
-			WL_DEBUG("(the thread may have already been terminated)\n");
-			return;
-		}
-		if(result==STILL_ACTIVE)
-		{
-			//printf("still active\n");
-			SetEvent(ThreadEvent);
-			if(WaitForSingleObject((*ThreadHandle)->m_hThread, 5000) == WAIT_TIMEOUT) {
-				// The plug-in does not seem to respect the exitEvent. Kill it!
-				TerminateThread((*ThreadHandle)->m_hThread, 999);
-			}
-			ResetEvent(ThreadEvent);
-			*ThreadHandle=NULL;
-		}
-	}
+    if (ThreadHandle.joinable())
+    {
+        ThreadEvent.SetEvent();
+        ThreadHandle.join();
+    }
 }

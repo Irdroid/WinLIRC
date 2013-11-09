@@ -75,8 +75,8 @@ private:
 
 	//==============================
 	CString		loadedPlugin;
-	HANDLE		daemonThreadEvent;
-	CWinThread	*daemonThreadHandle;
+	CEvent		daemonThreadEvent;
+	std::thread	daemonThreadHandle;
 	//==============================
 };
 

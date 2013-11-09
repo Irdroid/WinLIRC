@@ -26,7 +26,11 @@
 #include "winlirc.h"
 #include "drvdlg.h"
 
-unsigned int ServerThread(void *srv) {((Cserver *)srv)->ThreadProc();return 0;}
+unsigned int ServerThread(void *srv) {
+    ::SetThreadPriority(::GetCurrentThread(), THREAD_PRIORITY_IDLE);
+    ((Cserver *)srv)->ThreadProc();
+    return 0;
+}
 
 Cserver::Cserver()
 {
@@ -39,7 +43,7 @@ Cserver::Cserver()
 
 Cserver::~Cserver()
 {
-	KillThread(&ServerThreadHandle,&ServerThreadEvent);
+	KillThread(ServerThreadHandle, ServerThreadEvent);
 	for(int i=0;i<MAX_CLIENTS;i++)
 	{
 		if(m_clients[i]!=INVALID_SOCKET)
@@ -92,14 +96,14 @@ bool Cserver::init()
 	/* start thread */
 	/* THREAD_PRIORITY_IDLE combined with the REALTIME_PRIORITY_CLASS */
 	/* of this program still results in a really high priority. (16 out of 31) */
-	if((ServerThreadHandle=
-		AfxBeginThread(ServerThread,(void *)this,THREAD_PRIORITY_IDLE))==NULL)
-	{
-		WL_DEBUG("AfxBeginThread failed\n");
+    try {
+        ServerThreadHandle = std::thread([this]() { ServerThread(this); });
+        return true;
+    }
+    catch (...) {
+		WL_DEBUG("Thread creation failed\n");
 		return false;
-	}	
-    
-	return true;
+	}
 }
 
 bool Cserver::startserver(void)
@@ -234,7 +238,6 @@ void Cserver::ThreadProc(void)
 		if(res==WAIT_OBJECT_0)
 		{
 			WL_DEBUG("ServerThread terminating\n");
-			AfxEndThread(0);
 			return;
 		}
 		else if(res==(WAIT_OBJECT_0+1))

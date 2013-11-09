@@ -199,12 +199,11 @@ extern struct ir_remote *global_remotes;
 
 /* Change this stuff */
 extern class CCriticalSection CS_global_remotes;
-extern class CWinThread *ServerThreadHandle;
+extern std::thread ServerThreadHandle;
 extern class CEvent ServerThreadEvent;
 
 extern class CIRConfig config;
 
-void KillThread(CWinThread **ThreadHandle, CEvent *ThreadEvent);
-void KillThread2(CWinThread **ThreadHandle, HANDLE ThreadEvent);
+void KillThread(std::thread& ThreadHandle, CEvent& ThreadEvent);
 
 #endif

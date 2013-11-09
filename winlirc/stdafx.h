@@ -39,6 +39,7 @@
 #include <winsock2.h>		// winsock 2
 #include <afxsock.h>		// MFC socket extensions
 
+#include <thread>
 //{{AFX_INSERT_LOCATION}}
 // Microsoft Developer Studio will insert additional declarations immediately before the previous line.
 

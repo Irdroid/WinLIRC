@@ -29,11 +29,13 @@
 #include "server.h"
 
 unsigned int DaemonThread(void* drv) {
+    ::SetThreadPriority(::GetCurrentThread(), THREAD_PRIORITY_IDLE);
     static_cast<CIRDriver*>(drv)->DaemonThreadProc();
     return 0;
 }
 	
 CIRDriver::CIRDriver()
+    : daemonThreadEvent(FALSE, TRUE)
 {
 	dll.initFunction			= NULL;
 	dll.deinitFunction			= NULL;
@@ -44,23 +46,14 @@ CIRDriver::CIRDriver()
 	dll.setTransmittersFunction	= NULL;
 
 	dll.dllFile					= NULL;
-
-	daemonThreadHandle		= NULL;
-	daemonThreadEvent		= CreateEvent(NULL,TRUE,FALSE,NULL);
 }
 
 CIRDriver::~CIRDriver()
 {
 	unloadPlugin();
 
-	if(daemonThreadEvent) {
-		CloseHandle(daemonThreadEvent);
-		daemonThreadEvent = NULL;
-	}
-
-	if(daemonThreadHandle) {
-		delete daemonThreadHandle;
-		daemonThreadHandle = NULL;
+	if(daemonThreadHandle.joinable()) {
+		daemonThreadHandle.join();
 	}
 }
 
@@ -101,7 +94,7 @@ void CIRDriver::unloadPlugin() {
 	deinit();
 
 	// daemon thread should not be dead now.
-	ASSERT(daemonThreadHandle == NULL);
+	ASSERT(!daemonThreadHandle.joinable());
 
 	dll.initFunction			= NULL;
 	dll.deinitFunction			= NULL;
@@ -126,18 +119,19 @@ BOOL CIRDriver::init() {
 	deinit();
 
 	// daemon thread should be dead now.
-	ASSERT(daemonThreadHandle == NULL);
+	ASSERT(!daemonThreadHandle.joinable());
 
 	if(dll.initFunction) {
 		if(dll.initFunction(daemonThreadEvent)) {
 
 			//printf("started thread ..\n");
-
-			daemonThreadHandle = AfxBeginThread(DaemonThread, this, THREAD_PRIORITY_IDLE);
-
-			if(daemonThreadHandle) {
-				return TRUE;
-			}
+            try {
+                daemonThreadHandle = std::thread([this]() { DaemonThread(this); });
+                return true;
+            }
+            catch (...) {
+                return false;
+            }
 		}
 		else {
 			deinit();
@@ -149,9 +143,9 @@ BOOL CIRDriver::init() {
 
 void CIRDriver::deinit() {
 
-	KillThread2(&daemonThreadHandle,daemonThreadEvent);
+	KillThread(daemonThreadHandle, daemonThreadEvent);
 	// daemon thread should be dead now.
-	ASSERT(daemonThreadHandle == NULL);
+	ASSERT(!daemonThreadHandle.joinable());
 
 	if(dll.deinitFunction) {
 		dll.deinitFunction();

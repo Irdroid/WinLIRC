@@ -68,9 +68,10 @@ void CIRDriver::stop()
 {
     if (threadExitEvent_)
     {
-        ::SetEvent(threadExitEvent_.release());
+        ::SetEvent(threadExitEvent_.get());
         if (irThread_.joinable())
             irThread_.join();
+        threadExitEvent_.release();
         hDataReadyEvent.close();
         hPort.close();
     }
