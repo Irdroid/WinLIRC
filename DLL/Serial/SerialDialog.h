@@ -51,7 +51,6 @@ private:
 
     BEGIN_DDX_MAP(SerialDialog)
         DDX_CONTROL_HANDLE(IDC_PORT, cmbPort_)
-        DDX_COMBO_INDEX(IDC_PORT, cmbPortIndex_)
 
         DDX_CONTROL_HANDLE(IDC_SPEED, cmbSpeed_)
         DDX_COMBO_INDEX(IDC_SPEED, cmbSpeedIndex_)
@@ -74,8 +73,7 @@ private:
 
 private:
 
-    CComboBox cmbPort_;
-    int cmbPortIndex_;
+    CComPortCombo cmbPort_;
 
     CComboBox cmbSpeed_;
     int cmbSpeedIndex_;

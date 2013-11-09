@@ -47,8 +47,16 @@ bool CIRDriver::start(HANDLE threadExitEvent)
         Settings settings;
         hPort = initPort(settings);
 
-        irThread_ = std::thread([this, settings]() { this->threadProc(settings); });
-        return true;
+        if (hPort)
+        {
+            irThread_ = std::thread([this, settings]() { this->threadProc(settings); });
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+
     }
     catch (...)
     {
@@ -78,7 +86,7 @@ UniqueHandle<SerialPortTraits> CIRDriver::initPort(Settings& settings) const
     settings.loadSettings();
 
     UniqueHandle<SerialPortTraits> hSerialPort(CreateFile(
-        settings.port,
+        settings.portName,
         GENERIC_READ | GENERIC_WRITE,
         0,
         0,

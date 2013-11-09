@@ -46,7 +46,9 @@ void Settings::saveSettings() {
 		fclose(file);
 	}
 
-	WritePrivateProfileString(_T("SerialDevice"),_T("Port"), port, currentDirectory);
+	_sntprintf(temp, _countof(temp), _T("%i"), port);
+	WritePrivateProfileString(_T("SerialDevice"),_T("Port"), temp, currentDirectory);
+	WritePrivateProfileString(_T("SerialDevice"), _T("PortName"), portName, currentDirectory);
 	WritePrivateProfileString(_T("SerialDevice"),_T("Speed"), speed, currentDirectory);
 
 	_sntprintf(temp, _countof(temp), _T("%i"), animax);
@@ -76,8 +78,10 @@ void Settings::loadSettings() {
 
 	_tcscat(currentDirectory, _T("\\WinLIRC.ini"));
 
-	GetPrivateProfileString(_T("SerialDevice"),_T("Port"),_T("COM1"),temp,_countof(temp),currentDirectory);
-	port = temp;
+	port = GetPrivateProfileInt(_T("SerialDevice"),_T("Port"),-1,currentDirectory);
+
+	GetPrivateProfileString(_T("SerialDevice"), _T("PortName"), _T(""), temp, _countof(temp), currentDirectory);
+	portName = temp;
 
 	GetPrivateProfileString(_T("SerialDevice"),_T("Speed"),_T("115200"),temp,_countof(temp),currentDirectory);
 	speed = temp;

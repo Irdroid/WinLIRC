@@ -29,7 +29,7 @@ struct SerialPortTraits
 {
     typedef HANDLE HandleType;
 
-    static HandleType invalidValue() { return nullptr; }
+    static HandleType invalidValue() { return INVALID_HANDLE_VALUE; }
     static void close(HandleType h) { ::CloseHandle(h); }
 };
 

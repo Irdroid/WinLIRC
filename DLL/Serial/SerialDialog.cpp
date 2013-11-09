@@ -21,43 +21,13 @@
 
 #include "stdafx.h"
 #include "SerialDialog.h"
-//#include "Globals.h"
 
 #include "../Common/LIRCDefines.h"
 #include "Transmit.h"
 
-#include <vector>
 
 namespace
 {
-    /// Returns a vector containing names of all COM ports available on the system.
-    std::vector<CString> enumSerialPorts()
-    {
-        std::vector<CString> res;
-        std::vector<TCHAR> devices(1024);
-        DWORD n = 0;
-        while (true)
-        {
-            n = ::QueryDosDevice(nullptr, &devices[0], devices.size());
-            if (n == 0 && ::GetLastError() == ERROR_INSUFFICIENT_BUFFER)
-                devices.resize(2*devices.size());
-            else
-                break;
-        }
-        if (n != 0)
-        {
-            LPCTSTR s = &devices[0];
-            while (_tcslen(s) > 0)
-            {
-                if (_tcsnicmp(_T("com"), s, 3) == 0)
-                    res.push_back(s);
-                s += _tcslen(s) + 1;
-            }
-        }
-
-        return res;
-    }
-
     /// Fills a combobox with values.
     /// @param values - null-separated list of string to be added to \a cmb.
     void fillCombo(CComboBox& cmb, LPCTSTR values)
@@ -80,8 +50,7 @@ namespace
 // SerialDialog dialog
 
 SerialDialog::SerialDialog()
-    : cmbPortIndex_(0)
-    , cmbSpeedIndex_(0)
+    : cmbSpeedIndex_(0)
     , cmbSenseIndex_(0)
     , intVirtualPulse_(0)
     , bAnimax_(FALSE)
@@ -97,11 +66,6 @@ LRESULT SerialDialog::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lP
 {
     DoDataExchange(FALSE);
 
-    std::vector<CString> comPorts = enumSerialPorts();
-    for (std::vector<CString>::iterator i = comPorts.begin(); i != comPorts.end(); ++i)
-    {
-        cmbPort_.AddString(*i);
-    }
 
     TCHAR const speeds[] = _T("1200\0002400\0004800\0009600\00014400\00019200\00038400\00056000\00057600\000115200\000128000\000256000\000");
     fillCombo(cmbSpeed_, speeds);
@@ -111,7 +75,9 @@ LRESULT SerialDialog::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lP
 
     settings.loadSettings();
 
-    cmbPortIndex_  = selectString(cmbPort_, settings.port);
+    cmbPort_.InitList(settings.port);
+
+    //cmbPortIndex_  = selectString(cmbPort_, settings.port);
     cmbSpeedIndex_ = selectString(cmbSpeed_, settings.speed);
     cmbSenseIndex_ = settings.sense + 1;
 
@@ -141,14 +107,15 @@ LRESULT SerialDialog::OnOK(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOO
     DoDataExchange(TRUE);
     settings.transmitterType = (inverted<<2)|(transmitterPin<<1)|hardwareCarrier;
 
-    int sense = cmbSenseIndex_;//.GetCurSel();
+    int sense = cmbSenseIndex_;
     if (sense == 1 || sense == 2)
         --sense;
     else
         sense = -1;
     settings.sense = sense;
 
-    cmbPort_.GetLBText(cmbPortIndex_, settings.port);
+    settings.port = cmbPort_.GetPortNum(); // cmbPort_.GetLBText(cmbPortIndex_, settings.port);
+    cmbPort_.GetFileName(settings.portName);
     cmbSpeed_.GetLBText(cmbSpeedIndex_, settings.speed);
     settings.deviceType   = deviceType;
     settings.virtualPulse = intVirtualPulse_;

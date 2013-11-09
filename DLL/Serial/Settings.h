@@ -28,7 +28,8 @@ public:
 	void	loadSettings();
 
 	//========================
-	CString	port;
+	int     port;
+	CString portName; // file name used to open the device.
 	CString	speed;
 	BOOL	animax;
 	int		deviceType;

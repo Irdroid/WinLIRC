@@ -21,15 +21,20 @@
 
 #pragma once
 
-#define WINVER 0x0501
+#define WINVER 0x0600       // Vista and newer
 #define VC_EXTRALEAN		// Exclude rarely-used stuff from Windows headers
 
+#pragma warning(push)
+#pragma warning(disable: 4996) // use of deprecated functions
 #include <atlstr.h>
 #include <atlbase.h>
 #include <atlapp.h>
 #include <atlctrls.h>
 #include <atlddx.h>
 
+#pragma warning(disable: 4800) // forcing value to bool 'true' or 'false' (performance warning)
+#include "../../lib/ComPortCombo/ComPortCombo.h"
+#pragma warning(pop)
 
 #include <cstdio>
 #include <tchar.h>
