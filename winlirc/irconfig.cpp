@@ -23,7 +23,6 @@
 #include "stdafx.h"
 #include "irconfig.h"
 #include "irdriver.h"
-#include <atlbase.h>
 #include "config.h"
 #include "remote.h"
 #include "globals.h"

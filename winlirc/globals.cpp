@@ -21,10 +21,6 @@
 
 #include "stdafx.h"
 #include "globals.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include "afxmt.h"
-#include <stdarg.h>
 #include "irconfig.h"
 
 /* Debugging stuff */

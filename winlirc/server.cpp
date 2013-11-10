@@ -22,7 +22,6 @@
 #include "stdafx.h"
 #include "server.h"
 #include "remote.h"
-#include <atlbase.h> //password stuff
 #include "winlirc.h"
 #include "drvdlg.h"
 
