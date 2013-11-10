@@ -35,6 +35,7 @@
 #pragma warning(disable: 4800) // forcing value to bool 'true' or 'false' (performance warning)
 #include "../../lib/ComPortCombo/ComPortCombo.h"
 #pragma warning(pop)
+#include "../../lib/Utility/UniqueHandle.h"
 
 #include <cstdio>
 #include <tchar.h>
