@@ -119,26 +119,12 @@ bool InputPlugin::checkRecording(CString file) {
 	return true;
 }
 
-void InputPlugin::enableWindows(bool canRecord) {
-
-	if(m_hasGuiFunction) {
-		m_setupButton.EnableWindow(m_hasGuiFunction());
-	}
-	else {
-		m_setupButton.EnableWindow(FALSE);
-	}
-
-	if(canRecord) {
-		m_configPath.EnableWindow();
-		m_createConfigButton.EnableWindow();
-		m_browseButton.EnableWindow();
-	}
-	else {
-		m_configPath.EnableWindow(FALSE);
-		m_createConfigButton.EnableWindow(FALSE);
-		m_browseButton.EnableWindow(FALSE);
-	}
-
+void InputPlugin::enableWindows(bool canRecord)
+{
+	m_setupButton.EnableWindow(m_hasGuiFunction && m_hasGuiFunction());
+	m_configPath.EnableWindow(canRecord);
+	m_createConfigButton.EnableWindow(canRecord);
+	m_browseButton.EnableWindow(canRecord);
 }
 
 void InputPlugin::loadDll(CString file) {
@@ -169,13 +155,17 @@ void InputPlugin::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_COMBO1, m_cboxInputPlugin);
+	DDX_Text(pDX,    IDC_COMBO1, m_cboxInputPluginStr);
 	DDX_Control(pDX, IDC_BUTTON1, m_setupButton);
 	DDX_Control(pDX, IDC_EDIT1, m_configPath);
+	DDX_Text(pDX,    IDC_EDIT1, m_configPathStr);
 	DDX_Control(pDX, IDC_CHECK1, m_disableKeyRepeats);
+	DDX_Check(pDX,   IDC_CHECK1, m_disableKeyRepeatsInt);
 	DDX_Control(pDX, IDC_EDIT3, m_disableFirstRepeats);
+	DDX_Text(pDX,    IDC_EDIT3, m_disableFirstRepeatsInt);
 	DDX_Control(pDX, IDC_DISABLE_FIRST_REPEATS, m_disableFirstRepeatsLabel);
-	DDX_Control(pDX, IDC_CHECK2, m_allowLocalConnectionsOnly);
-	DDX_Control(pDX, IDC_CHECK3, m_disableSystemTrayIcon);
+	DDX_Check(pDX,   IDC_CHECK2, m_allowLocalConnectionsOnly);
+	DDX_Check(pDX,   IDC_CHECK3, m_disableSystemTrayIcon);
 	DDX_Control(pDX, IDC_BUTTON3, m_createConfigButton);
 	DDX_Control(pDX, IDC_BUTTON2, m_browseButton);
 }
@@ -220,80 +210,43 @@ void InputPlugin::OnCbnSelchangeCombo1() {
 
 void InputPlugin::OnBnClickedOk() {
 
-	//=================
-	CString confPath;
-	CString fKeyReps;
-	//=================
-
-	m_configPath.GetWindowText(confPath);
+	UpdateData(TRUE);
 
 	//
 	// some basic error checking
 	//
 
-	if(confPath!="") {
-
-		//========
-		FILE *tmp;
-		//========
-
-		tmp = _tfopen(confPath,_T("r"));
-
-		if(tmp==NULL) {
+	if (!m_configPathStr.IsEmpty())
+	{
+		if (!PathFileExists(m_configPathStr))
+		{
 			MessageBox(	_T("The configuration filename is invalid.\n")
 				_T("Please try again."),_T("Configuration Error"));
 			return;
 		}
-		else {
-			fclose(tmp);
-		}
 	}
 
-	config.remoteConfig = confPath;
-
-	m_cboxInputPlugin.GetWindowText(config.plugin);
-
-	if(m_disableKeyRepeats.GetCheck()==BST_CHECKED) {
-		config.disableRepeats = TRUE;
-	}
-	else {
-		config.disableRepeats = FALSE;
-	}
-
-	m_disableFirstRepeats.GetWindowText(fKeyReps);
-
-	if(fKeyReps!="") {
-		config.disableFirstKeyRepeats = _tstoi(fKeyReps);
-	}
-	else {
-		config.disableFirstKeyRepeats = 0;
-	}
-
-	if(m_allowLocalConnectionsOnly.GetCheck()==BST_CHECKED) {
-		config.localConnectionsOnly = TRUE;
-	}
-	else {
-		config.localConnectionsOnly = FALSE;
-	}
-
-	if(m_disableSystemTrayIcon.GetCheck()==BST_CHECKED) {
-		config.showTrayIcon = FALSE;
-	}
-	else {
-		config.showTrayIcon = TRUE;
-	}
+	config.remoteConfig = m_configPathStr;
+	config.plugin = m_cboxInputPluginStr; //m_cboxInputPlugin.GetWindowText(config.plugin);
+	config.disableRepeats = (m_disableKeyRepeatsInt == BST_CHECKED);
+	config.disableFirstKeyRepeats = m_disableFirstRepeatsInt;
+	config.localConnectionsOnly = (m_allowLocalConnectionsOnly == BST_CHECKED);
+	config.showTrayIcon = (m_disableSystemTrayIcon != BST_CHECKED);
 
 	config.writeINIFile();
 
 	OnOK();
 }
 
-void InputPlugin::OnBnClickedButton2() {
+void InputPlugin::OnBnClickedButton2()
+{
+	UpdateData(TRUE);
+	CFileDialog fileDlg(TRUE, NULL, m_configPathStr, OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR | OFN_ENABLESIZING, NULL, this, 0, TRUE);
 
-	CFileDialog fileDlg(TRUE,NULL,NULL,OFN_PATHMUSTEXIST|OFN_NOCHANGEDIR|OFN_ENABLESIZING,NULL,this,0,TRUE);
-
-	if( fileDlg.DoModal ()==IDOK ) {
-		m_configPath.SetWindowText(fileDlg.GetPathName());
+	if (fileDlg.DoModal() == IDOK)
+	{
+		m_configPathStr = fileDlg.GetPathName();
+		UpdateData(FALSE);
 	}
 }
 
@@ -314,91 +267,67 @@ void InputPlugin::OnBnClickedButton1()
 	}
 }
 
-BOOL InputPlugin::OnInitDialog() {
-
-	//===========
-	CString temp;
-	//===========
-
+BOOL InputPlugin::OnInitDialog()
+{
 	CDialog::OnInitDialog();
 
 	listDllFiles();
 
-	m_configPath.SetWindowText(config.remoteConfig);
+	m_configPathStr = config.remoteConfig;
+	m_disableFirstRepeatsInt = config.disableFirstKeyRepeats;
 
-	temp.Format(_T("%i"),config.disableFirstKeyRepeats);
-
-	m_disableFirstRepeats.SetWindowText(temp);
-
-	if(config.disableRepeats) {
-		m_disableKeyRepeats.SetCheck(BST_CHECKED);
+	if(config.disableRepeats)
+	{
+		m_disableKeyRepeatsInt = BST_CHECKED;
 		m_disableFirstRepeats.EnableWindow(FALSE);
 		m_disableFirstRepeatsLabel.EnableWindow(FALSE);
 	}
 
 	if(config.localConnectionsOnly) {
-		m_allowLocalConnectionsOnly.SetCheck(BST_CHECKED);
+		m_allowLocalConnectionsOnly = BST_CHECKED;
 	}
 
 	if(!config.showTrayIcon) {
-		m_disableSystemTrayIcon.SetCheck(BST_CHECKED);
+		m_disableSystemTrayIcon = BST_CHECKED;
 	}
-   
+
+	UpdateData(FALSE);
 	return TRUE;
 
 }
 
-void InputPlugin::OnBnClickedCheck1() {
-
-	//=============
-	INT	checkState;
-	//=============
-
-	checkState = m_disableKeyRepeats.GetCheck();
-
-	if(checkState==BST_CHECKED) {
-		m_disableFirstRepeats.EnableWindow(FALSE);
-		m_disableFirstRepeatsLabel.EnableWindow(FALSE);
-	}
-	else {
-		m_disableFirstRepeats.EnableWindow(TRUE);
-		m_disableFirstRepeatsLabel.EnableWindow(TRUE);
-	}
-
+void InputPlugin::OnBnClickedCheck1()
+{
+	UpdateData(TRUE);
+	bool const enable = (m_disableKeyRepeatsInt != BST_CHECKED);
+	m_disableFirstRepeats.EnableWindow(enable);
+	m_disableFirstRepeatsLabel.EnableWindow(enable);
 }
 
-void InputPlugin::OnBnClickedButton3() {
-	
-	//==============================
-	CString				confPath;
-	CString				pluginName;
-	CString				commandLine;
-	STARTUPINFO			si;
-	PROCESS_INFORMATION pi;
-	BOOL				processCreated;
-	//==============================
+void InputPlugin::OnBnClickedButton3()
+{
+	UpdateData(TRUE);
 
-	m_configPath.GetWindowText(confPath);
-
-	if(confPath==_T("")) {
-		m_configPath.SetWindowText(_T("..\\config.cf"));
-		m_configPath.GetWindowText(confPath);
+	if (m_configPathStr.IsEmpty())
+	{
+		m_configPathStr = _T("..\\config.cf");
 	}
 
-	m_cboxInputPlugin.GetWindowText(pluginName);
-
-	if(pluginName==_T("")) {
+	if (m_cboxInputPluginStr.IsEmpty())
+	{
 		MessageBox(_T("No valid plugins selected."));
 		return;
 	}
 
-	ZeroMemory( &si, sizeof(si) );
+	STARTUPINFO si = { 0 };
 	si.cb = sizeof(si);
-	ZeroMemory( &pi, sizeof(pi) );
 
-	commandLine = _T("..\\IRRecord -d ") + pluginName + _T(" \"") + confPath + _T("\"");
+	PROCESS_INFORMATION pi = { 0 };
 
-	processCreated = CreateProcess( NULL,	// No module name (use command line)
+	CString commandLine = _T("..\\IRRecord -d ") + m_cboxInputPluginStr + _T(" \"") + m_configPathStr + _T("\"");
+
+	BOOL const processCreated = CreateProcess(
+		NULL,								// No module name (use command line)
 		commandLine.GetBuffer(0),			// Command line
 		NULL,								// Process handle not inheritable
 		NULL,								// Thread handle not inheritable

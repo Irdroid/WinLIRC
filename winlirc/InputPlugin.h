@@ -47,13 +47,17 @@ private:
 	afx_msg void OnBnClickedButton3();
 
 	CComboBox	m_cboxInputPlugin;
+	CString		m_cboxInputPluginStr;
 	CButton		m_setupButton;
 	CEdit		m_configPath;
+	CString		m_configPathStr;
 	CButton		m_disableKeyRepeats;
+	INT			m_disableKeyRepeatsInt;
 	CEdit		m_disableFirstRepeats;
+	int			m_disableFirstRepeatsInt;
 	CStatic		m_disableFirstRepeatsLabel;
-	CButton		m_allowLocalConnectionsOnly;
-	CButton		m_disableSystemTrayIcon;	
+	INT			m_allowLocalConnectionsOnly;
+	INT			m_disableSystemTrayIcon;
 	CButton		m_createConfigButton;
 	CButton		m_browseButton;
 };
