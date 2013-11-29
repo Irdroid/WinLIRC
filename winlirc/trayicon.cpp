@@ -25,10 +25,8 @@
 #include "trayicon.h"
 #include "winlirc.h"
 
-IMPLEMENT_DYNAMIC(CTrayIcon, CCmdTarget)
-
-CTrayIcon::CTrayIcon(UINT uID) {
-
+CTrayIcon::CTrayIcon(UINT uID)
+{
 	memset(&icondata,0,sizeof(icondata));
 	icondata.cbSize	= sizeof(icondata);
 	icondata.uID	= uID;
@@ -41,15 +39,15 @@ CTrayIcon::~CTrayIcon()
 	SetIcon(0);
 }
 
-void CTrayIcon::SetNotificationWnd(CWnd *notifywnd, UINT message)
+void CTrayIcon::SetNotificationWnd(HWND notifywnd, UINT message)
 {
-	if(notifywnd==NULL || !::IsWindow(notifywnd->GetSafeHwnd()))
+	if (notifywnd == NULL || !::IsWindow(notifywnd))
 	{
 		WL_DEBUG("Invalid window\n");
 		return;
 	}
 
-	icondata.hWnd=notifywnd->GetSafeHwnd();
+	icondata.hWnd = notifywnd;
 
 	if(message!=0 && message<WM_USER)
 	{
@@ -59,13 +57,9 @@ void CTrayIcon::SetNotificationWnd(CWnd *notifywnd, UINT message)
 	icondata.uCallbackMessage=message;
 }
 
-bool CTrayIcon::SetIcon(UINT uID) { 
-
-	//=========
-	HICON icon;
-	//=========
-
-	icon = NULL;
+bool CTrayIcon::SetIcon(UINT uID)
+{
+	HICON icon = NULL;
 
 	if(uID) {
 
@@ -147,11 +141,6 @@ LRESULT CTrayIcon::OnTrayNotification(WPARAM id, LPARAM event)
 	}
 
 	return 1;
-}
-
-bool CTrayIcon::SetStandardIcon(LPCTSTR iconname, LPCTSTR tip)
-{
-	return SetIcon(::LoadIcon(NULL,iconname),tip);
 }
 
 bool CTrayIcon::SetIcon(LPCTSTR resname, LPCTSTR tip)

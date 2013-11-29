@@ -101,7 +101,7 @@ int Cdrvdlg::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CDialog::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	ti.SetNotificationWnd(this, WM_TRAY);
+	ti.SetNotificationWnd(*this, WM_TRAY);
 
 	if(DoInitializeDaemon()==false)
 		return -1;

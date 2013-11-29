@@ -23,26 +23,22 @@
 #ifndef _TRAYICON_H
 #define _TRAYICON_H
 
-class CTrayIcon : public CCmdTarget {
-
-protected:
-	DECLARE_DYNAMIC(CTrayIcon)
-	NOTIFYICONDATA icondata;
-
+class CTrayIcon
+{
 public:
 	CTrayIcon(UINT uID);
-   ~CTrayIcon();
+	~CTrayIcon();
 
-	bool SetIcon			(UINT uID);
-	bool SetIcon			(HICON hicon, LPCTSTR tip);
-	bool SetIcon			(LPCTSTR resname, LPCTSTR tip);
-	bool SetStandardIcon	(LPCTSTR iconname, LPCTSTR tip);
-	void SetNotificationWnd	(CWnd *notifywnd, UINT message);
-	void DisableTrayIcon	();
+	bool SetIcon(UINT uID);
+	bool SetIcon(HICON hicon, LPCTSTR tip);
+	bool SetIcon(LPCTSTR resname, LPCTSTR tip);
+	void SetNotificationWnd(HWND notifywnd, UINT message);
+	void DisableTrayIcon();
 
-	virtual LRESULT OnTrayNotification(WPARAM id, LPARAM event);
+	LRESULT OnTrayNotification(WPARAM id, LPARAM event);
 
 private:
+	NOTIFYICONDATA icondata;
 };
 
 #endif
