@@ -369,7 +369,7 @@ BOOL Cserver::parseSendString(const char *string, CStringA &response) {
 	struct ir_remote	*sender;
 	//==========================
 
-	CSingleLock lock(&CS_global_remotes,TRUE);
+	std::unique_lock<std::mutex> lock(CS_global_remotes);
 
 	remoteName[0]	= '\0';	// null terminate
 	keyName[0]		= '\0';
@@ -431,7 +431,7 @@ BOOL Cserver::parseListString(const char *string, CStringA &response) {
 	struct ir_remote *all;
 	//====================
 
-	CSingleLock lock(&CS_global_remotes,TRUE);
+	std::unique_lock<std::mutex> lock(CS_global_remotes);
 
 	remoteName	= strtok(NULL," \t\r");
 	codeName	= strtok(NULL," \t\r");

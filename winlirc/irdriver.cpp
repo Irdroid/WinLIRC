@@ -63,7 +63,7 @@ BOOL CIRDriver::loadPlugin(CString plugin) {
 	//make sure we have cleaned up first
 	//
 
-	CSingleLock l(&dllLock);
+	std::unique_lock<std::mutex> l(dllLock);
 	unloadPlugin();
 
 	loadedPlugin	= plugin;
@@ -154,7 +154,7 @@ void CIRDriver::deinit() {
 
 int	CIRDriver::sendIR(struct ir_remote *remote,struct ir_ncode *code, int repeats) {
 
-	CSingleLock l(&dllLock);
+	std::unique_lock<std::mutex> l(dllLock);
 	if(dll.sendFunction) {
 		return dll.sendFunction(remote,code,repeats);
 	}
@@ -164,7 +164,7 @@ int	CIRDriver::sendIR(struct ir_remote *remote,struct ir_ncode *code, int repeat
 
 int	CIRDriver::decodeIR(struct ir_remote *remote, char *out) {
 
-	CSingleLock l(&dllLock);
+	std::unique_lock<std::mutex> l(dllLock);
 	if(dll.decodeFunction) {
 		return dll.decodeFunction(remote,out);
 	}
@@ -174,7 +174,7 @@ int	CIRDriver::decodeIR(struct ir_remote *remote, char *out) {
 
 int	CIRDriver::setTransmitters(unsigned int transmitterMask) {
 
-	CSingleLock l(&dllLock);
+	std::unique_lock<std::mutex> l(dllLock);
 	if(dll.setTransmittersFunction) {
 		return dll.setTransmittersFunction(transmitterMask);
 	}
@@ -195,10 +195,10 @@ void CIRDriver::DaemonThreadProc(void) const {
 
 	while(WaitForSingleObject(daemonThreadEvent, 0) == WAIT_TIMEOUT) {
 
-		CSingleLock l(&dllLock);
+		std::unique_lock<std::mutex> l(dllLock);
 		ASSERT(dll.decodeFunction != NULL);
 		if(dll.decodeFunction(global_remotes,message)) {
-			l.Unlock();
+			l.unlock();
 
 			//======================
 			UINT64	keyCode;

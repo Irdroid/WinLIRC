@@ -59,7 +59,7 @@ private:
 	/// Protects access to the functions imported from plug-in dll, and the
 	/// DLL handle.
 	/// TODO: move all the load/unload logic and related stuff to Dll class.
-	mutable CCriticalSection	dllLock;
+	mutable std::mutex			dllLock;
 	struct Dll {
 		InitFunction			initFunction;
 		DeinitFunction			deinitFunction;

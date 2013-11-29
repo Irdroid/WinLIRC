@@ -359,7 +359,7 @@ void Cdrvdlg::OnSendcode()
 	m_remote_edit.TrimLeft();
 	m_ircode_edit.TrimLeft();
 
-	CSingleLock lock(&CS_global_remotes,TRUE);
+	std::unique_lock<std::mutex> lock(CS_global_remotes);
 	USES_CONVERSION;
 	char const* const remoteName = T2A(m_remote_edit.GetBuffer());
 	sender = get_remote_by_name(global_remotes, remoteName);

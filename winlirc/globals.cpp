@@ -50,7 +50,7 @@ struct ir_remote *global_remotes=NULL;
 std::thread ServerThreadHandle;
 CEvent ServerThreadEvent;
 
-CCriticalSection CS_global_remotes;
+std::mutex CS_global_remotes;
 
 CIRConfig config;
 

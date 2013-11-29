@@ -30,7 +30,7 @@
 
 CIRConfig::CIRConfig() {
 
-	CSingleLock lock(&CS_global_remotes,TRUE);
+	std::unique_lock<std::mutex> lock(CS_global_remotes);
 	
 	global_remotes=NULL;
 	exitOnError = FALSE;
@@ -40,7 +40,7 @@ CIRConfig::~CIRConfig()
 {
 	WL_DEBUG("~CIRConfig\n");
 		
-	CSingleLock lock(&CS_global_remotes,TRUE);
+	std::unique_lock<std::mutex> lock(CS_global_remotes);
 
 	if(global_remotes!=NULL) {
 		free_config(global_remotes);
@@ -53,7 +53,7 @@ CIRConfig::~CIRConfig()
 bool CIRConfig::readConfig() {
 
 	//========================================
-	CSingleLock lock(&CS_global_remotes,TRUE);
+	std::unique_lock<std::mutex> lock(CS_global_remotes);
 	FILE *file;
 	//========================================
 

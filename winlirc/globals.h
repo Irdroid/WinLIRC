@@ -23,9 +23,6 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
-#include <stdio.h>
-#include <stdlib.h>
-
 #ifdef _DEBUG
 	#define WL_DEBUG(...) winlirc_debug(__FILE__,__LINE__,__VA_ARGS__)
 #else
@@ -198,7 +195,7 @@ extern struct ir_remote *global_remotes;
 
 
 /* Change this stuff */
-extern class CCriticalSection CS_global_remotes;
+extern std::mutex CS_global_remotes;
 extern std::thread ServerThreadHandle;
 extern class CEvent ServerThreadEvent;
 
