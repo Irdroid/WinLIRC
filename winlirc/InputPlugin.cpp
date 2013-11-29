@@ -23,59 +23,24 @@ InputPlugin::~InputPlugin()
 {
 }
 
-void InputPlugin::listDllFiles() {
-
-	//==========================
+void InputPlugin::listDllFiles()
+{
 	CFileFind	cFileFind;
-	CString		searchFile;
-	BOOL		found;
-	BOOL		foundMatch;			// match with the ini config
-	bool		canRecord;
-	CString		temp;
-	int			i;
-	int			matchIndex;
-	//==========================
+	BOOL found = cFileFind.FindFile(_T(".\\*.dll"));
 
-	searchFile	= _T(".\\*.dll");
-	found		= cFileFind.FindFile(searchFile);
-	foundMatch	= FALSE;
-	i			= 0;
-	matchIndex	= 0;
-	canRecord	= false;
-
-	if(!found) {
-
+	if (!found)
+	{
 		MessageBox(_T("No valid dlls found."));
-
-		return;
 	}
-
-	while(found) {
-
-		found = cFileFind.FindNextFile();
-
-		if(checkDllFile(cFileFind.GetFilePath())) {
-
-			m_cboxInputPlugin.AddString(cFileFind.GetFileName());
-		
-			if(cFileFind.GetFileName() == config.plugin) {
-				m_cboxInputPlugin.SetCurSel(i);
-				foundMatch	= TRUE;
-				matchIndex	= i;
-				canRecord	= checkRecording(cFileFind.GetFilePath());
-			}
-			
-			i++;
+	else
+	{
+		while (found)
+		{
+			found = cFileFind.FindNextFile();
+			if (checkDllFile(cFileFind.GetFilePath()))
+				m_cboxInputPlugin.AddString(cFileFind.GetFileName());
 		}
 	}
-
-	m_cboxInputPlugin.SetCurSel(matchIndex);
-	m_cboxInputPlugin.GetLBText(matchIndex,temp);
-
-	temp = _T(".\\") + temp;
-
-	loadDll(temp);
-	enableWindows(canRecord);
 }
 
 bool InputPlugin::checkDllFile(CString file) {
@@ -156,6 +121,7 @@ void InputPlugin::DoDataExchange(CDataExchange* pDX)
 	CDialog::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_CMB_INPUT_PLUGIN, m_cboxInputPlugin);
 	DDX_Text(pDX,    IDC_CMB_INPUT_PLUGIN, m_cboxInputPluginStr);
+	DDX_CBIndex(pDX, IDC_CMB_INPUT_PLUGIN, m_cboxInputPluginIndex);
 	DDX_Control(pDX, IDC_BN_PLUGIN_SETUP, m_setupButton);
 	DDX_Control(pDX, IDC_EDIT_CONFIG_PATH, m_configPath);
 	DDX_Text(pDX,    IDC_EDIT_CONFIG_PATH, m_configPathStr);
@@ -183,33 +149,25 @@ END_MESSAGE_MAP()
 
 // InputPlugin message handlers
 
-void InputPlugin::OnCbnSelchangeInputPlugin() {
-
-	//======================
-	int		cursorSelection;
-	CString file;
-	bool	validFile;
-	bool	canRecord;
-	//======================
-
+void InputPlugin::OnCbnSelchangeInputPlugin()
+{
 	unloadDll();
 
-	cursorSelection = m_cboxInputPlugin.GetCurSel();
+	UpdateData(TRUE);
 
-	m_cboxInputPlugin.GetLBText(m_cboxInputPlugin.GetCurSel(),file);
+	CString const file = _T(".\\") + m_cboxInputPluginStr;
+	bool const validFile	= checkDllFile(file);
+	bool const canRecord	= checkRecording(file);
 
-	file		= _T(".\\") + file;
-	validFile	= checkDllFile(file);
-	canRecord	= checkRecording(file);
-
-	if(!validFile) MessageBox(_T("Invalid dll file"),_T("Error"),0);
+	if (!validFile)
+		MessageBox(_T("Invalid dll file"), _T("Error"), 0);
 
 	loadDll(file);
 	enableWindows(canRecord);
 }
 
-void InputPlugin::OnBnClickedOk() {
-
+void InputPlugin::OnBnClickedOk()
+{
 	UpdateData(TRUE);
 
 	//
@@ -227,7 +185,7 @@ void InputPlugin::OnBnClickedOk() {
 	}
 
 	config.remoteConfig = m_configPathStr;
-	config.plugin = m_cboxInputPluginStr; //m_cboxInputPlugin.GetWindowText(config.plugin);
+	config.plugin = m_cboxInputPluginStr;
 	config.disableRepeats = (m_disableKeyRepeatsInt == BST_CHECKED);
 	config.disableFirstKeyRepeats = m_disableFirstRepeatsInt;
 	config.localConnectionsOnly = (m_allowLocalConnectionsOnly == BST_CHECKED);
@@ -273,23 +231,16 @@ BOOL InputPlugin::OnInitDialog()
 
 	listDllFiles();
 
+	m_cboxInputPluginIndex = m_cboxInputPlugin.FindStringExact(0, config.plugin);
+	if (m_cboxInputPluginIndex == CB_ERR)
+		m_cboxInputPluginIndex = 0;
 	m_configPathStr = config.remoteConfig;
 	m_disableFirstRepeatsInt = config.disableFirstKeyRepeats;
-
-	if(config.disableRepeats)
-	{
-		m_disableKeyRepeatsInt = BST_CHECKED;
-		m_disableFirstRepeats.EnableWindow(FALSE);
-		m_disableFirstRepeatsLabel.EnableWindow(FALSE);
-	}
-
-	if(config.localConnectionsOnly) {
-		m_allowLocalConnectionsOnly = BST_CHECKED;
-	}
-
-	if(!config.showTrayIcon) {
-		m_disableSystemTrayIcon = BST_CHECKED;
-	}
+	m_disableKeyRepeatsInt = config.disableRepeats ? BST_CHECKED : BST_UNCHECKED;
+	m_disableFirstRepeats.EnableWindow(!config.disableRepeats);
+	m_disableFirstRepeatsLabel.EnableWindow(!config.disableRepeats);
+	m_allowLocalConnectionsOnly = config.localConnectionsOnly ? BST_CHECKED : BST_UNCHECKED;
+	m_disableSystemTrayIcon = config.showTrayIcon ? BST_UNCHECKED : BST_CHECKED;
 
 	UpdateData(FALSE);
 	return TRUE;

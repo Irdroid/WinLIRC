@@ -48,6 +48,7 @@ private:
 
 	CComboBox	m_cboxInputPlugin;
 	CString		m_cboxInputPluginStr;
+	int			m_cboxInputPluginIndex;
 	CButton		m_setupButton;
 	CEdit		m_configPath;
 	CString		m_configPathStr;
