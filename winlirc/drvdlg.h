@@ -57,7 +57,7 @@ public:
 	
 // Dialog Data
 	//{{AFX_DATA(Cdrvdlg)
-	enum { IDD = IDD_DIALOG };
+	enum { IDD = IDD_DRVDLG };
 	CComboBox	m_IrCodeEditCombo;
 	CComboBox	m_remote_DropDown;
 	CString	m_ircode_edit;

@@ -128,7 +128,7 @@ BOOL Cwinlirc::InitInstance() {
 	
 	WL_DEBUG("Creating main dialog...\n");
 
-	if(!dlg->Create(IDD_DIALOG,NULL)) {
+	if(!dlg->Create(IDD_DRVDLG,NULL)) {
 
 		MessageBox(NULL,_T("Program exiting."),_T("WinLIRC"),MB_OK|MB_ICONERROR);
 
