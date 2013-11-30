@@ -40,7 +40,8 @@ add_executable(winlirc WIN32
 	)
 
 if (MSVC)
-	set_target_properties(winlirc PROPERTIES COMPILE_FLAGS "/Yustdafx.h")
+	set_target_properties(winlirc PROPERTIES COMPILE_FLAGS "/Yustdafx.h /Zi")
+	set_target_properties(winlirc PROPERTIES LINK_FLAGS "/DEBUG")
 	set_source_files_properties(stdafx.cpp PROPERTIES COMPILE_FLAGS "/Ycstdafx.h")
 endif()
 

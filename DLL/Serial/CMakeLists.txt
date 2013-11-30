@@ -26,7 +26,8 @@ add_library(Serial SHARED
 	)
 
 if (MSVC)
-	set_target_properties(Serial PROPERTIES COMPILE_FLAGS "/Yustdafx.h")
+	set_target_properties(Serial PROPERTIES COMPILE_FLAGS "/Yustdafx.h /Zi")
+	set_target_properties(Serial PROPERTIES LINK_FLAGS "/DEBUG")
 	set_source_files_properties(stdafx.cpp PROPERTIES COMPILE_FLAGS "/Ycstdafx.h")
 endif()
 
