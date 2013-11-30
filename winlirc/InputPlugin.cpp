@@ -25,8 +25,8 @@ InputPlugin::InputPlugin()
 
 void InputPlugin::listDllFiles()
 {
-	CFileFind	cFileFind;
-	BOOL found = cFileFind.FindFile(_T(".\\*.dll"));
+	FileFinder cFileFind;
+	bool found = cFileFind.FindFile(_T(".\\*.dll"));
 
 	if (!found)
 	{
@@ -34,12 +34,14 @@ void InputPlugin::listDllFiles()
 	}
 	else
 	{
-		while (found)
+		do
 		{
+			CString const fileName = cFileFind.GetFileName();
+			if (checkDllFile(fileName))
+				m_cboxInputPlugin.AddString(fileName);
+
 			found = cFileFind.FindNextFile();
-			if (checkDllFile(cFileFind.GetFileName()))
-				m_cboxInputPlugin.AddString(cFileFind.GetFileName());
-		}
+		} while (found);
 	}
 }
 
@@ -170,11 +172,16 @@ LRESULT InputPlugin::OnBnClickedOk(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hW
 LRESULT InputPlugin::OnBnClickedBrowse(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
 	DoDataExchange(TRUE);
-	CFileDialog fileDlg(TRUE, NULL, m_configPathStr, OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR | OFN_ENABLESIZING, NULL, *this);
+	CFileDialog fileDlg(
+		TRUE,
+		_T("cf"),
+		m_configPathStr,
+		OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR | OFN_ENABLESIZING,
+		_T("WinLIRC configuration files (*.cf)\0*.cf\0All files (*.*)\0*.*\0"), *this);
 
 	if (fileDlg.DoModal() == IDOK)
 	{
-		fileDlg.GetFilePath(m_configPathStr.GetBufferSetLength(MAX_PATH+1), MAX_PATH);
+		m_configPathStr = fileDlg.m_szFileName;
 		DoDataExchange(FALSE);
 	}
 	return 0;
@@ -203,6 +210,7 @@ LRESULT InputPlugin::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lPa
 	DoDataExchange(FALSE);
 
 	listDllFiles();
+	loadDll(config.plugin);
 
 	m_cboxInputPluginIndex = m_cboxInputPlugin.FindStringExact(0, config.plugin);
 	if (m_cboxInputPluginIndex == CB_ERR)

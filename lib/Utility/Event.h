@@ -1,7 +1,16 @@
 #pragma once
 
-#include "HandleTraits.h"
 #include "UniqueHandle.h"
+#include <utility>
+
+/// Traits for handles returned by CreateEvent.
+struct EventTraits
+{
+	typedef HANDLE HandleType;
+
+	static HandleType invalidValue() { return nullptr; }
+	static void close(HandleType h) { ::CloseHandle(h); }
+};
 
 class Event : public UniqueHandle<EventTraits>
 {

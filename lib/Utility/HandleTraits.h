@@ -11,15 +11,6 @@ struct FileTraits
 
 typedef FileTraits SerialPortTraits;
 
-/// Traits for handles returned by CreateEvent.
-struct EventTraits
-{
-	typedef HANDLE HandleType;
-
-	static HandleType invalidValue() { return nullptr; }
-	static void close(HandleType h) { ::CloseHandle(h); }
-};
-
 /// Traits for handles returned by WSACreateEvent.
 struct WsaEventTraits
 {
@@ -27,13 +18,4 @@ struct WsaEventTraits
 
 	static HandleType invalidValue() { return WSA_INVALID_EVENT; }
 	static void close(HandleType h) { ::WSACloseEvent(h); }
-};
-
-/// Traits for handles returned by FindFirsFile, FindFirstFileEx,
-/// FindFirstFileTransacted.
-struct FileFindTraits
-{
-	typedef HANDLE HandleType;
-	static HandleType invalidValue() { return INVALID_HANDLE_VALUE; }
-	static void close(HandleType h) { ::FindClose(h); }
 };

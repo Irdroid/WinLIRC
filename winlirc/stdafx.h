@@ -52,6 +52,7 @@
 #include <thread>
 
 #include "../lib/Utility/Event.h"
+#include "../lib/Utility/FileFinder.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -59,35 +60,6 @@
 
 class CWaitCursor
 {
-};
-
-class CFileFind
-{
-public:
-	CFileFind()
-		: handle_(INVALID_HANDLE_VALUE)
-	{ }
-	
-	~CFileFind()
-	{
-		::FindClose(handle_);
-	}
-
-	BOOL FindFile(CString const& fileName)
-	{
-		handle_ = ::FindFirstFile(fileName, &findData_);
-		return handle_ != INVALID_HANDLE_VALUE;
-	}
-	BOOL FindNextFile()
-	{
-		return ::FindNextFile(handle_, &findData_);
-	}
-
-	//CString GetFilePath() const { return findData_.}
-	CString GetFileName() const { return findData_.cFileName; }
-private:
-	HANDLE handle_;
-	WIN32_FIND_DATA findData_;
 };
 
 #if defined _M_IX86
