@@ -73,7 +73,7 @@ private:
 
 	//==============================
 	CString		loadedPlugin;
-	CEvent		daemonThreadEvent;
+	Event		daemonThreadEvent;
 	std::thread	daemonThreadHandle;
 	//==============================
 };

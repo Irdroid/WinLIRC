@@ -35,8 +35,10 @@
 #pragma warning(disable: 4800) // forcing value to bool 'true' or 'false' (performance warning)
 #include "../../lib/ComPortCombo/ComPortCombo.h"
 #pragma warning(pop)
+#include "../../lib/Utility/Event.h"
+#include "../../lib/Utility/HandleTraits.h"
 #include "../../lib/Utility/UniqueHandle.h"
-
+#include "../../lib/Utility/WeakHandle.h"
 #include <cstdio>
 #include <tchar.h>
 #include <ctime>

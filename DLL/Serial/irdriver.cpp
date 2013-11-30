@@ -40,8 +40,8 @@ bool CIRDriver::start(HANDLE threadExitEvent)
 
     try
     {
-        threadExitEvent_ = UniqueHandle<EventTraits>(threadExitEvent);
-        hDataReadyEvent  = UniqueHandle<EventTraits>(CreateEvent(NULL,TRUE,FALSE,NULL));
+        threadExitEvent_ = WeakHandle<EventTraits>(threadExitEvent);
+        hDataReadyEvent = Event(FALSE, TRUE); 
 
         dataBuffer = DataBuffer();
         Settings settings;
@@ -71,7 +71,6 @@ void CIRDriver::stop()
         ::SetEvent(threadExitEvent_.get());
         if (irThread_.joinable())
             irThread_.join();
-        threadExitEvent_.release();
         hDataReadyEvent.close();
         hPort.close();
     }

@@ -51,39 +51,11 @@
 #include <mutex>
 #include <thread>
 
+#include "../lib/Utility/Event.h"
+
 #pragma comment(lib, "ws2_32.lib")
 
 #define ASSERT assert
-
-class CEvent
-{
-public:
-	CEvent(
-		BOOL bInitiallyOwn = FALSE,
-		BOOL bManualReset = FALSE,
-		LPCTSTR lpszName = NULL,
-		LPSECURITY_ATTRIBUTES lpsaAttribute = NULL
-		)
-		: handle_(::CreateEvent(lpsaAttribute, bManualReset, bInitiallyOwn, lpszName))
-	{ }
-
-	~CEvent()
-	{
-		::CloseHandle(handle_);
-	}
-
-	HANDLE get() const { return handle_; }
-
-	void SetEvent() const { ::SetEvent(handle_); }
-	void ResetEvent() const { ::ResetEvent(handle_); }
-
-private:
-	// non-copyable
-	CEvent(CEvent const&);
-	void operator=(CEvent const&);
-
-	HANDLE handle_;
-};
 
 class CWaitCursor
 {

@@ -47,13 +47,13 @@ void winlirc_debug(const char *file, int line, char *format, ...)
 
 struct ir_remote *global_remotes=NULL;
 
-CEvent ServerThreadEvent;
+Event ServerThreadEvent;
 
 std::mutex CS_global_remotes;
 
 CIRConfig config;
 
-void KillThread(std::thread& ThreadHandle, CEvent& ThreadEvent)
+void KillThread(std::thread& ThreadHandle, Event& ThreadEvent)
 {
     if (ThreadHandle.joinable())
     {

@@ -3,9 +3,11 @@
 template <typename HandleTraits>
 class UniqueHandle
 {
+protected:
     typedef HandleTraits Traits;
     typedef typename Traits::HandleType HandleType;
 
+private:
     UniqueHandle(UniqueHandle const&); // not copyable
     void operator=(UniqueHandle const&); // not assignable
 

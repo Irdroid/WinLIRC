@@ -25,22 +25,6 @@
 
 class Settings;
 
-struct SerialPortTraits
-{
-    typedef HANDLE HandleType;
-
-    static HandleType invalidValue() { return INVALID_HANDLE_VALUE; }
-    static void close(HandleType h) { ::CloseHandle(h); }
-};
-
-struct EventTraits
-{
-    typedef HANDLE HandleType;
-
-    static HandleType invalidValue() { return nullptr; }
-    static void close(HandleType h) { ::CloseHandle(h); }
-};
-
 struct DataBuffer
 {
     DataBuffer()
@@ -95,8 +79,8 @@ private:
     mutable DataBuffer  dataBuffer; // thread safe!
     //==========================
     UniqueHandle<SerialPortTraits> hPort;
-    UniqueHandle<EventTraits> hDataReadyEvent;
-    UniqueHandle<EventTraits> threadExitEvent_;
+    Event hDataReadyEvent;
+    WeakHandle<EventTraits> threadExitEvent_;
     //==========================
 
     std::thread irThread_;

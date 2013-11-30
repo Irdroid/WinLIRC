@@ -212,8 +212,8 @@ void Cserver::ThreadProc(void)
 	if(m_server==INVALID_SOCKET) return;
 	int i;
 	
-	CEvent ServerEvent;
-	CEvent ClientEvent[MAX_CLIENTS];
+	Event ServerEvent;
+	Event ClientEvent[MAX_CLIENTS];
 #define MAX_DATA 1024	// longest message a client can send
 	char ClientData[MAX_CLIENTS][MAX_DATA];
 	char toparse[MAX_DATA];
