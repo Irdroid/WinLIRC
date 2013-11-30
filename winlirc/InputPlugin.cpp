@@ -6,21 +6,21 @@
 #include "InputPlugin.h"
 #include "irconfig.h"
 
+static HMODULE loadLibrary(CString const& lib)
+{
+	UINT const backup = ::SetErrorMode(~0);
+	HMODULE const res = ::LoadLibrary(lib);
+	::SetErrorMode(backup);
+	return res;
+}
 
 // InputPlugin dialog
 
-IMPLEMENT_DYNAMIC(InputPlugin, CDialog)
-
-InputPlugin::InputPlugin(CWnd* pParent /*=NULL*/)
-	: CDialog(InputPlugin::IDD, pParent)
+InputPlugin::InputPlugin()
 {
 	m_hasGuiFunction		= NULL;
 	m_loadSetupGuiFunction	= NULL;
 	m_dllFile				= NULL;
-}
-
-InputPlugin::~InputPlugin()
-{
 }
 
 void InputPlugin::listDllFiles()
@@ -37,7 +37,7 @@ void InputPlugin::listDllFiles()
 		while (found)
 		{
 			found = cFileFind.FindNextFile();
-			if (checkDllFile(cFileFind.GetFilePath()))
+			if (checkDllFile(cFileFind.GetFileName()))
 				m_cboxInputPlugin.AddString(cFileFind.GetFileName());
 		}
 	}
@@ -49,7 +49,7 @@ bool InputPlugin::checkDllFile(CString file) {
 	HMODULE tmp;
 	//==========
 
-	tmp = LoadLibrary(file);
+	tmp = loadLibrary(file);
 
 	if(!tmp) return false;
 
@@ -71,7 +71,7 @@ bool InputPlugin::checkRecording(CString file) {
 	HMODULE tmp;
 	//==========
 
-	tmp = LoadLibrary(file);
+	tmp = loadLibrary(file);
 
 	if(!tmp) return false;
 
@@ -94,7 +94,7 @@ void InputPlugin::enableWindows(bool canRecord)
 
 void InputPlugin::loadDll(CString file) {
 
-	m_dllFile = LoadLibrary(file);
+	m_dllFile = loadLibrary(file);
 
 	if(!m_dllFile) return;
 
@@ -115,46 +115,15 @@ void InputPlugin::unloadDll() {
 	m_dllFile				= NULL;
 }
 
-
-void InputPlugin::DoDataExchange(CDataExchange* pDX)
-{
-	CDialog::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_CMB_INPUT_PLUGIN, m_cboxInputPlugin);
-	DDX_Text(pDX,    IDC_CMB_INPUT_PLUGIN, m_cboxInputPluginStr);
-	DDX_CBIndex(pDX, IDC_CMB_INPUT_PLUGIN, m_cboxInputPluginIndex);
-	DDX_Control(pDX, IDC_BN_PLUGIN_SETUP, m_setupButton);
-	DDX_Control(pDX, IDC_EDIT_CONFIG_PATH, m_configPath);
-	DDX_Text(pDX,    IDC_EDIT_CONFIG_PATH, m_configPathStr);
-	DDX_Control(pDX, IDC_CHK_DISABLE_KEY_REPEATS, m_disableKeyRepeats);
-	DDX_Check(pDX,   IDC_CHK_DISABLE_KEY_REPEATS, m_disableKeyRepeatsInt);
-	DDX_Control(pDX, IDC_EDIT_DISABLE_FIRST_REPEATS, m_disableFirstRepeats);
-	DDX_Text(pDX,    IDC_EDIT_DISABLE_FIRST_REPEATS, m_disableFirstRepeatsInt);
-	DDX_Control(pDX, IDC_DISABLE_FIRST_REPEATS, m_disableFirstRepeatsLabel);
-	DDX_Check(pDX,   IDC_CHK_LOCAL_CONNECTIONS_ONLY, m_allowLocalConnectionsOnly);
-	DDX_Check(pDX,   IDC_CHK_DISABLE_TRAY_ICON, m_disableSystemTrayIcon);
-	DDX_Control(pDX, IDC_BN_CREATE_CONFIG, m_createConfigButton);
-	DDX_Control(pDX, IDC_BN_BROWSE, m_browseButton);
-}
-
-BEGIN_MESSAGE_MAP(InputPlugin, CDialog)
-	ON_CBN_SELCHANGE(IDC_CMB_INPUT_PLUGIN, &InputPlugin::OnCbnSelchangeInputPlugin)
-	ON_BN_CLICKED(IDOK, &InputPlugin::OnBnClickedOk)
-	ON_BN_CLICKED(IDC_BN_BROWSE, &InputPlugin::OnBnClickedBrowse)
-	ON_BN_CLICKED(IDCANCEL, &InputPlugin::OnBnClickedCancel)
-	ON_BN_CLICKED(IDC_BN_PLUGIN_SETUP, &InputPlugin::OnBnClickedPluginSetup)
-	ON_BN_CLICKED(IDC_CHK_DISABLE_KEY_REPEATS, &InputPlugin::OnBnClickedDisableKeyRepeats)
-	ON_BN_CLICKED(IDC_BN_CREATE_CONFIG, &InputPlugin::OnBnClickedCreateConfig)
-END_MESSAGE_MAP()
-
-
 // InputPlugin message handlers
 
-void InputPlugin::OnCbnSelchangeInputPlugin()
+LRESULT InputPlugin::OnCbnSelchangeInputPlugin(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
 	unloadDll();
 
-	UpdateData(TRUE);
+	DoDataExchange(TRUE);
 
+	CString m_cboxInputPluginStr; m_cboxInputPlugin.GetLBText(m_cboxInputPluginIndex, m_cboxInputPluginStr);
 	CString const file = _T(".\\") + m_cboxInputPluginStr;
 	bool const validFile	= checkDllFile(file);
 	bool const canRecord	= checkRecording(file);
@@ -164,11 +133,12 @@ void InputPlugin::OnCbnSelchangeInputPlugin()
 
 	loadDll(file);
 	enableWindows(canRecord);
+	return 0;
 }
 
-void InputPlugin::OnBnClickedOk()
+LRESULT InputPlugin::OnBnClickedOk(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-	UpdateData(TRUE);
+	DoDataExchange(TRUE);
 
 	//
 	// some basic error checking
@@ -180,7 +150,7 @@ void InputPlugin::OnBnClickedOk()
 		{
 			MessageBox(	_T("The configuration filename is invalid.\n")
 				_T("Please try again."),_T("Configuration Error"));
-			return;
+			return 0;
 		}
 	}
 
@@ -193,28 +163,30 @@ void InputPlugin::OnBnClickedOk()
 
 	config.writeINIFile();
 
-	OnOK();
+	EndDialog(IDOK);
+	return 0;
 }
 
-void InputPlugin::OnBnClickedBrowse()
+LRESULT InputPlugin::OnBnClickedBrowse(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-	UpdateData(TRUE);
-	CFileDialog fileDlg(TRUE, NULL, m_configPathStr, OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR | OFN_ENABLESIZING, NULL, this, 0, TRUE);
+	DoDataExchange(TRUE);
+	CFileDialog fileDlg(TRUE, NULL, m_configPathStr, OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR | OFN_ENABLESIZING, NULL, *this);
 
 	if (fileDlg.DoModal() == IDOK)
 	{
-		m_configPathStr = fileDlg.GetPathName();
-		UpdateData(FALSE);
+		fileDlg.GetFilePath(m_configPathStr.GetBufferSetLength(MAX_PATH+1), MAX_PATH);
+		DoDataExchange(FALSE);
 	}
+	return 0;
 }
 
-void InputPlugin::OnBnClickedCancel()
+LRESULT InputPlugin::OnBnClickedCancel(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-	// TODO: Add your control notification handler code here
-	OnCancel();
+	EndDialog(IDCANCEL);
+	return 0;
 }
 
-void InputPlugin::OnBnClickedPluginSetup()
+LRESULT InputPlugin::OnBnClickedPluginSetup(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
 	if(m_loadSetupGuiFunction) {
 
@@ -223,11 +195,12 @@ void InputPlugin::OnBnClickedPluginSetup()
 		this->EnableWindow(TRUE);
 		this->SetFocus();
 	}
+	return 0;
 }
 
-BOOL InputPlugin::OnInitDialog()
+LRESULT InputPlugin::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 {
-	CDialog::OnInitDialog();
+	DoDataExchange(FALSE);
 
 	listDllFiles();
 
@@ -242,22 +215,23 @@ BOOL InputPlugin::OnInitDialog()
 	m_allowLocalConnectionsOnly = config.localConnectionsOnly ? BST_CHECKED : BST_UNCHECKED;
 	m_disableSystemTrayIcon = config.showTrayIcon ? BST_UNCHECKED : BST_CHECKED;
 
-	UpdateData(FALSE);
+	DoDataExchange(FALSE);
 	return TRUE;
 
 }
 
-void InputPlugin::OnBnClickedDisableKeyRepeats()
+LRESULT InputPlugin::OnBnClickedDisableKeyRepeats(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-	UpdateData(TRUE);
+	DoDataExchange(TRUE);
 	bool const enable = (m_disableKeyRepeatsInt != BST_CHECKED);
 	m_disableFirstRepeats.EnableWindow(enable);
 	m_disableFirstRepeatsLabel.EnableWindow(enable);
+	return 0;
 }
 
-void InputPlugin::OnBnClickedCreateConfig()
+LRESULT InputPlugin::OnBnClickedCreateConfig(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-	UpdateData(TRUE);
+	DoDataExchange(TRUE);
 
 	if (m_configPathStr.IsEmpty())
 	{
@@ -267,7 +241,7 @@ void InputPlugin::OnBnClickedCreateConfig()
 	if (m_cboxInputPluginStr.IsEmpty())
 	{
 		MessageBox(_T("No valid plugins selected."));
-		return;
+		return 0;
 	}
 
 	STARTUPINFO si = { 0 };
@@ -296,5 +270,5 @@ void InputPlugin::OnBnClickedCreateConfig()
 	else {
 		MessageBox(_T("IRRecord.exe missing"));
 	}
-
+	return 0;
 }

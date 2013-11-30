@@ -47,7 +47,6 @@ void winlirc_debug(const char *file, int line, char *format, ...)
 
 struct ir_remote *global_remotes=NULL;
 
-std::thread ServerThreadHandle;
 CEvent ServerThreadEvent;
 
 std::mutex CS_global_remotes;

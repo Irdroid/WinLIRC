@@ -48,6 +48,7 @@ private:
 	SOCKET	m_server;
 	SOCKET	m_clients[MAX_CLIENTS];
 	int		m_tcp_port;				//tcp port for server
+	std::thread ServerThreadHandle;
 
 	#define LINE_LEN 1024
 };

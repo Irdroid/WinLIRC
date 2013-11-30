@@ -25,8 +25,6 @@
 #define IRDRIVER_H
 
 #include "globals.h"
-
-#include "stdafx.h"
 #include "winlirc.h"
 
 

@@ -2,8 +2,10 @@ cmake_minimum_required (VERSION 2.8)
 
 project(WinLIRC)
 
-# Use MFC in a shared DLL.
-set(CMAKE_MFC_FLAG 2)
+# 0 - Use standard windows libraries.
+# 1 - Use MFC in a static library.
+# 2 - Use MFC in a shared DLL.
+set(CMAKE_MFC_FLAG 0)
 
 add_executable(winlirc WIN32
 	config.cpp
@@ -47,3 +49,7 @@ add_definitions(
 	-D_UNICODE
 	)
 
+# TODO: create a cmake module to find wtl.
+include_directories(
+	${CMAKE_SOURCE_DIR}/wtl/include
+	)

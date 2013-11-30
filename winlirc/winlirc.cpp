@@ -25,15 +25,25 @@
 #include "server.h"
 #include "guicon.h"
 
-Cwinlirc app;
+CAppModule _Module;
+Cserver* server = nullptr;
+Cdrvdlg* dlg = nullptr;
 
-BEGIN_MESSAGE_MAP(Cwinlirc,CWinApp)
-END_MESSAGE_MAP()
+int WINAPI _tWinMain(
+	_In_  HINSTANCE hInstance,
+	_In_  HINSTANCE /*hPrevInstance*/,
+	_In_  LPTSTR lpCmdLine,
+	_In_  int nCmdShow
+	)
+{
+	::CoInitialize(NULL);
 
-BOOL Cwinlirc::InitInstance() {   
+	// this resolves ATL window thunking problem when Microsoft Layer for Unicode (MSLU) is used
+	::DefWindowProc(NULL, 0, 0, 0L);
 
-	AfxInitRichEdit();
+	AtlInitCommonControls(ICC_BAR_CLASSES);	// add flags to support other controls
 
+	HRESULT hRes = _Module.Init(NULL, hInstance);
 #ifdef _DEBUG
 	RedirectIOToConsole();
 #endif
@@ -61,48 +71,34 @@ BOOL Cwinlirc::InitInstance() {
 	// command line stuff
 	//
 
-	if(_tcsstr(m_lpCmdLine,_T("/e")) || _tcsstr(m_lpCmdLine,_T("/E"))) {
+	if(_tcsstr(lpCmdLine,_T("/e")) || _tcsstr(lpCmdLine,_T("/E"))) {
 		config.exitOnError = TRUE;
 	}
 
-	if(_tcsstr(m_lpCmdLine,_T("/t")) || _tcsstr(m_lpCmdLine,_T("/T"))) {
+	if(_tcsstr(lpCmdLine,_T("/t")) || _tcsstr(lpCmdLine,_T("/T"))) {
 		config.showTrayIcon = FALSE;
 	}
 
-	dlg		= new Cdrvdlg();
-	server	= new Cserver();
+	Cserver server_;
+	server = &server_;
 
 	if(!CreateMutex(0,FALSE,_T("WinLIRC Multiple Instance Lockout")) || GetLastError()==ERROR_ALREADY_EXISTS) {
 
-		//=======
-		HWND tmp;
-		//=======
-
-		tmp=FindWindow(NULL,_T("WinLIRC"));
-
-		if(!tmp)
+		HWND const winlirc = FindWindow(NULL, _T("WinLIRC"));
+		if (!winlirc)
 		{
-			MessageBox(NULL,_T("WinLIRC is already running"),_T("WinLIRC"),MB_OK);
+			MessageBox(NULL, _T("WinLIRC is already running"), _T("WinLIRC"), MB_OK);
 		}
 		else
 		{
 			// bring it to the top
 
-			//===========
-			CWnd winlirc;
-			CWnd *last;
-			//===========
+			HWND const last = GetLastActivePopup(winlirc);
+			if (!IsWindowVisible(winlirc))
+				ShowWindow(winlirc, SW_SHOW);
 
-			winlirc.Attach(tmp);
-
-			last = winlirc.GetLastActivePopup();
-
-			if(!winlirc.IsWindowVisible()) winlirc.ShowWindow(SW_SHOW);
-
-			winlirc.SetForegroundWindow();
-			last->SetForegroundWindow();
-
-			winlirc.Detach();
+			SetForegroundWindow(winlirc);
+			SetForegroundWindow(last);
 		}
 		return FALSE;
 	}
@@ -110,49 +106,40 @@ BOOL Cwinlirc::InitInstance() {
 	//
 	//Process initialization and sanity checks
 	//
-	if(SetPriorityClass(GetCurrentProcess(),REALTIME_PRIORITY_CLASS)==0 || SetThreadPriority(THREAD_PRIORITY_IDLE)==0)
+	if(SetPriorityClass(GetCurrentProcess(),REALTIME_PRIORITY_CLASS)==0 || SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_IDLE)==0)
 	{
 		MessageBox(NULL,_T("Could not set thread priority."),_T("WinLIRC"),MB_OK|MB_ICONERROR);
 		return FALSE;
 	}
 	
-	if(server->init()==false) {
-
-		MessageBox(NULL,_T("Could not start server."),_T("WinLIRC"),MB_OK|MB_ICONERROR);
-
-		delete server; 
+	if (!server->init())
+	{
+		MessageBox(NULL, _T("Could not start server."), _T("WinLIRC"), MB_OK | MB_ICONERROR);
 		server = NULL;
-
 		return FALSE;
 	}
 	
 	WL_DEBUG("Creating main dialog...\n");
 
-	if(!dlg->Create(IDD_DRVDLG,NULL)) {
+	{
+		Cdrvdlg dlg_;
+		dlg = &dlg_;
 
-		MessageBox(NULL,_T("Program exiting."),_T("WinLIRC"),MB_OK|MB_ICONERROR);
+		CMessageLoop theLoop;
+		_Module.AddMessageLoop(&theLoop);
 
-		delete dlg;
-		delete server; 
-
-		dlg		= NULL; 
-		server	= NULL; 
-		
-		return FALSE;
+		if (dlg_.Create(NULL) == NULL)
+		{
+			ATLTRACE(_T("Main dialog creation failed!\n"));
+			return 0;
+		}
+		dlg_.ShowWindow(SW_HIDE);
+		dlg_.UpdateWindow();
+		theLoop.Run();
+		_Module.RemoveMessageLoop();
 	}
 
-	dlg->ShowWindow(SW_HIDE);	
-	dlg->UpdateWindow();
-	m_pMainWnd=dlg;
-	
-	return TRUE;
-	
-}
-
-int Cwinlirc::ExitInstance()
-{
-	delete server;
-	delete dlg;
-
-	return CWinApp::ExitInstance();
+	_Module.Term();
+	::CoUninitialize();
+	return 0;
 }

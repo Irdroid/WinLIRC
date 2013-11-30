@@ -24,8 +24,6 @@
 #define IRCONFIG_H
 
 #include "globals.h"
-
-#include "stdafx.h"
 #include "irdriver.h"
 
 class CIRConfig {

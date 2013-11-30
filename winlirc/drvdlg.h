@@ -20,14 +20,7 @@
  * Modifications Copyright (C) 2000 Scott Baily <baily@uiuc.edu>
  */
 
-#if !defined(AFX_DRVDLG_H__C20B80E0_C848_11D2_8C7F_004005637418__INCLUDED_)
-#define AFX_DRVDLG_H__C20B80E0_C848_11D2_8C7F_004005637418__INCLUDED_
-
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
-// drvdlg.h : header file
-//
 
 #include "globals.h"
 
@@ -42,11 +35,12 @@ class CIRConfig;
 /////////////////////////////////////////////////////////////////////////////
 // Cdrvdlg dialog
 
-class Cdrvdlg : public CDialog
+class Cdrvdlg
+	: public CDialogImpl<Cdrvdlg>
+	, public CWinDataExchange<Cdrvdlg>
 {
-// Construction
 public:
-	Cdrvdlg(CWnd* pParent = NULL);   // standard constructor
+	Cdrvdlg();
 	
 	bool initialized;
 	bool AllowTrayNotification;
@@ -56,51 +50,68 @@ public:
 	void GoBlue();	//turns the tray icon blue to indicate a transmission
 	
 // Dialog Data
-	//{{AFX_DATA(Cdrvdlg)
 	enum { IDD = IDD_DRVDLG };
 	CComboBox	m_IrCodeEditCombo;
 	CComboBox	m_remote_DropDown;
 	CString	m_ircode_edit;
 	CString	m_remote_edit;
 	int	m_reps_edit;
-	//}}AFX_DATA
 
 	CTrayIcon ti;
 	CIRDriver driver;
-
-// Overrides
-	// ClassWizard generated virtual function overrides
-	//{{AFX_VIRTUAL(Cdrvdlg)
-	protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
-	//}}AFX_VIRTUAL
 
 // Implementation
 protected:
 
 	// Generated message map functions
-	//{{AFX_MSG(Cdrvdlg)
-	virtual void OnOK();
-	virtual void OnCancel();
-	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
-	afx_msg void OnToggleWindow();
-	afx_msg void OnConfig();
-	afx_msg void OnHideme();
-	afx_msg void OnExitLirc();
-	afx_msg void OnTimer(UINT_PTR nIDEvent);
-	virtual BOOL OnInitDialog();
-	afx_msg void OnSendcode();
-	afx_msg BOOL OnCopyData(CWnd* pWnd, COPYDATASTRUCT* pCopyDataStruct);
-	afx_msg void OnDropdownIrcodeEdit();
-	//}}AFX_MSG
-	afx_msg LRESULT OnPowerBroadcast(WPARAM uPowerEvent, LPARAM lP);
+	void ExitLirc();
+	LRESULT OnToggleWindow(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	void ToggleWindow();
+	void OnConfig();
+	void OnHideme();
+	LRESULT OnExitLirc(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	int OnTimer(UINT_PTR nIDEvent);
+	BOOL OnInitDialog();
+	void OnSendcode();
+	BOOL OnCopyData(HWND pWnd, COPYDATASTRUCT* pCopyDataStruct);
+	void OnDropdownIrcodeEdit();
+	LRESULT OnPowerBroadcast(WPARAM uPowerEvent, LPARAM lP);
 	void UpdateRemoteComboLists();
 	void UpdateIrCodeComboLists();
 	LRESULT OnTrayNotification(WPARAM uID, LPARAM lEvent);
-	DECLARE_MESSAGE_MAP()
+
+
+	BEGIN_DDX_MAP(Cdrvdlg)
+		DDX_CONTROL_HANDLE(IDC_IRCODE_EDIT, m_IrCodeEditCombo);
+		DDX_CONTROL_HANDLE(IDC_REMOTE_EDIT, m_remote_DropDown);
+		DDX_TEXT(IDC_IRCODE_EDIT, m_ircode_edit);
+		DDX_TEXT_LEN(IDC_IRCODE_EDIT, m_ircode_edit, 64);
+		DDX_TEXT(IDC_REMOTE_EDIT, m_remote_edit);
+		DDX_TEXT_LEN(IDC_REMOTE_EDIT, m_remote_edit, 64);
+		DDX_INT(IDC_REPS_EDIT, m_reps_edit);
+		DDX_INT_RANGE(IDC_REPS_EDIT, m_reps_edit, 0, 600);
+	END_DDX_MAP()
+
+
+	BEGIN_MSG_MAP(Cdrvdlg)
+		MESSAGE_HANDLER(WM_CREATE, MessageHandler)//ON_WM_CREATE()
+		MESSAGE_HANDLER(WM_INITDIALOG, MessageHandler)
+		MESSAGE_HANDLER(WM_TRAY, MessageHandler)//ON_MESSAGE(WM_TRAY, OnTrayNotification)
+		MESSAGE_HANDLER(WM_POWERBROADCAST, MessageHandler)//ON_MESSAGE(WM_POWERBROADCAST, OnPowerBroadcast)
+		MESSAGE_HANDLER(WM_TIMER, MessageHandler)//ON_WM_TIMER()
+		MESSAGE_HANDLER(WM_COPYDATA, MessageHandler)//ON_WM_COPYDATA()
+
+		COMMAND_ID_HANDLER(ID_TOGGLEWINDOW, OnToggleWindow)
+		COMMAND_ID_HANDLER(ID_EXITLIRC, OnExitLirc)
+		COMMAND_HANDLER(IDCANCEL, BN_CLICKED, OnExitLirc)//ON_BN_CLICKED(IDC_CONFIG, OnConfig)
+		COMMAND_HANDLER(IDC_CONFIG, BN_CLICKED, CommandHandler)//ON_BN_CLICKED(IDC_CONFIG, OnConfig)
+		COMMAND_HANDLER(IDC_HIDEME, BN_CLICKED, CommandHandler)//ON_BN_CLICKED(IDC_HIDEME, OnHideme)
+		COMMAND_HANDLER(IDC_SENDCODE, BN_CLICKED, CommandHandler)//ON_BN_CLICKED(IDC_SENDCODE, OnSendcode)
+		COMMAND_HANDLER(IDC_IRCODE_EDIT, CBN_DROPDOWN, CommandHandler)//ON_CBN_DROPDOWN(IDC_IRCODE_EDIT, OnDropdownIrcodeEdit)
+	END_MSG_MAP()
+
+	// Handler prototypes (uncomment arguments if needed):
+	LRESULT MessageHandler(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
+	LRESULT CommandHandler(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	//LRESULT NotifyHandler(int /*idCtrl*/, LPNMHDR /*pnmh*/, BOOL& /*bHandled*/);
 };
-
-//{{AFX_INSERT_LOCATION}}
-// Microsoft Visual C++ will insert additional declarations immediately before the previous line.
-
-#endif // !defined(AFX_DRVDLG_H__C20B80E0_C848_11D2_8C7F_004005637418__INCLUDED_)

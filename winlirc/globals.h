@@ -196,7 +196,6 @@ extern struct ir_remote *global_remotes;
 
 /* Change this stuff */
 extern std::mutex CS_global_remotes;
-extern std::thread ServerThreadHandle;
 extern class CEvent ServerThreadEvent;
 
 extern class CIRConfig config;

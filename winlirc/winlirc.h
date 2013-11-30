@@ -23,29 +23,12 @@
 #define WINLIRC_H
 
 #include "globals.h"
-
-#include "stdafx.h"
 #include "resource.h"
-
-#ifdef _DEBUG
-#define new DEBUG_NEW
-#endif
 
 class Cdrvdlg;
 class Cserver;
 
-class Cwinlirc : public CWinApp
-{
-public:
-	Cdrvdlg *dlg;
-	Cserver *server;
-
-	virtual BOOL InitInstance();
-	virtual int ExitInstance();
-protected:
-	DECLARE_MESSAGE_MAP()
-};
-
-extern Cwinlirc app;
+extern Cdrvdlg* dlg;
+extern Cserver* server;
 
 #endif

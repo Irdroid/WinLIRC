@@ -111,8 +111,8 @@ void CIRDriver::unloadPlugin() {
 	dll.dllFile					= NULL;
 }
 
-BOOL CIRDriver::init() {
-
+BOOL CIRDriver::init()
+{
 	//
 	// safe to call deinit first
 	//
@@ -121,19 +121,27 @@ BOOL CIRDriver::init() {
 	// daemon thread should be dead now.
 	ASSERT(!daemonThreadHandle.joinable());
 
-	if(dll.initFunction) {
-		if(dll.initFunction(daemonThreadEvent)) {
+	if (dll.initFunction)
+	{
+		// Make sure that the event is not set. Otherwise the plugin
+		// will stop as soon as it has started.
+		ResetEvent(daemonThreadEvent.get());
+		if (dll.initFunction(daemonThreadEvent.get()))
+		{
 
 			//printf("started thread ..\n");
-            try {
-                daemonThreadHandle = std::thread([this]() { DaemonThread(this); });
-                return true;
-            }
-            catch (...) {
-                return false;
-            }
+			try
+			{
+				daemonThreadHandle = std::thread([this]() { DaemonThread(this); });
+				return true;
+			}
+			catch (...)
+			{
+				return false;
+			}
 		}
-		else {
+		else
+		{
 			deinit();
 		}
 	}
@@ -193,7 +201,7 @@ void CIRDriver::DaemonThreadProc(void) const {
 	char message[PACKET_SIZE+1];
 	//==========================
 
-	while(WaitForSingleObject(daemonThreadEvent, 0) == WAIT_TIMEOUT) {
+	while(WaitForSingleObject(daemonThreadEvent.get(), 0) == WAIT_TIMEOUT) {
 
 		std::unique_lock<std::mutex> l(dllLock);
 		ASSERT(dll.decodeFunction != NULL);
@@ -228,8 +236,8 @@ void CIRDriver::DaemonThreadProc(void) const {
 				}
 			}
 
-			app.dlg->GoGreen();
-			app.server->sendToClients(message);
+			::dlg->GoGreen();
+			::server->sendToClients(message);
 		}
 
 	}

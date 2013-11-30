@@ -24,20 +24,25 @@
 #define WINVER 0x0501
 #define VC_EXTRALEAN		// Exclude rarely-used stuff from Windows headers
 
-#include <afxwin.h>         // MFC core and standard components
-#include <afxext.h>         // MFC extensions
-#include <afxmt.h>			// Multithreading
-#ifndef _AFX_NO_AFXCMN_SUPPORT
-#include <afxcmn.h>			// MFC support for Windows Common Controls
-#endif // _AFX_NO_AFXCMN_SUPPORT
-#include <afxpriv.h>
+#ifndef _WTL_NO_CSTRING
+#define _WTL_NO_CSTRING
+#endif
+
+#include <atlstr.h>
+#include <atlbase.h>
+#include <atlapp.h>
+#include <atlctrls.h>
+#include <atlddx.h>
+#include <atldlgs.h>
+#include <atlmisc.h>
 
 #include <winsock2.h>		// winsock 2
-#include <afxsock.h>		// MFC socket extensions
 
 #include <fcntl.h>
 #include <io.h>
+#include <tchar.h>
 
+#include <cassert>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -45,6 +50,73 @@
 #include <iostream>
 #include <mutex>
 #include <thread>
+
+#pragma comment(lib, "ws2_32.lib")
+
+#define ASSERT assert
+
+class CEvent
+{
+public:
+	CEvent(
+		BOOL bInitiallyOwn = FALSE,
+		BOOL bManualReset = FALSE,
+		LPCTSTR lpszName = NULL,
+		LPSECURITY_ATTRIBUTES lpsaAttribute = NULL
+		)
+		: handle_(::CreateEvent(lpsaAttribute, bManualReset, bInitiallyOwn, lpszName))
+	{ }
+
+	~CEvent()
+	{
+		::CloseHandle(handle_);
+	}
+
+	HANDLE get() const { return handle_; }
+
+	void SetEvent() const { ::SetEvent(handle_); }
+	void ResetEvent() const { ::ResetEvent(handle_); }
+
+private:
+	// non-copyable
+	CEvent(CEvent const&);
+	void operator=(CEvent const&);
+
+	HANDLE handle_;
+};
+
+class CWaitCursor
+{
+};
+
+class CFileFind
+{
+public:
+	CFileFind()
+		: handle_(INVALID_HANDLE_VALUE)
+	{ }
+	
+	~CFileFind()
+	{
+		::FindClose(handle_);
+	}
+
+	BOOL FindFile(CString const& fileName)
+	{
+		handle_ = ::FindFirstFile(fileName, &findData_);
+		return handle_ != INVALID_HANDLE_VALUE;
+	}
+	BOOL FindNextFile()
+	{
+		return ::FindNextFile(handle_, &findData_);
+	}
+
+	//CString GetFilePath() const { return findData_.}
+	CString GetFileName() const { return findData_.cFileName; }
+private:
+	HANDLE handle_;
+	WIN32_FIND_DATA findData_;
+};
 
 #if defined _M_IX86
 #pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='x86' publicKeyToken='6595b64144ccf1df' language='*'\"")

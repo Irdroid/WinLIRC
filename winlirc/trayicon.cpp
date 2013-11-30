@@ -25,13 +25,21 @@
 #include "trayicon.h"
 #include "winlirc.h"
 
+HICON loadIcon(int iconId);
+HICON loadIcon(LPCTSTR iconId);
+
+template <int Size>
+static int loadString(UINT nID, TCHAR(&buf)[Size])
+{
+	return ::LoadString(::GetModuleHandle(NULL), nID, buf, Size);
+}
+
 CTrayIcon::CTrayIcon(UINT uID)
 {
 	memset(&icondata,0,sizeof(icondata));
 	icondata.cbSize	= sizeof(icondata);
-	icondata.uID	= uID;
-
-	AfxLoadString(uID,icondata.szTip,sizeof(icondata.szTip));
+	icondata.uID = uID;
+	loadString(uID, icondata.szTip);
 }
 
 CTrayIcon::~CTrayIcon()
@@ -63,8 +71,8 @@ bool CTrayIcon::SetIcon(UINT uID)
 
 	if(uID) {
 
-		AfxLoadString(uID,icondata.szTip,sizeof(icondata.szTip));
-		icon=AfxGetApp()->LoadIcon(uID);
+		loadString(uID, icondata.szTip);
+		icon = loadIcon(uID);
 	}
 
 	return SetIcon(icon,NULL);
@@ -123,21 +131,21 @@ LRESULT CTrayIcon::OnTrayNotification(WPARAM id, LPARAM event)
 	// resource menu with same ID as icon will be used as popup menu
 	CMenu menu;
 	if(!menu.LoadMenu(icondata.uID)) return 0;
-	CMenu *submenu=menu.GetSubMenu(0); 
-	if(!submenu) 
+	CMenuHandle submenu = menu.GetSubMenu(0);
+	if (!submenu)
 		return 0;
 
-	if(event==WM_RBUTTONUP)
+	if (event == WM_RBUTTONUP)
 	{
-		::SetMenuDefaultItem(submenu->m_hMenu,0,true);
+		::SetMenuDefaultItem(submenu, 0, true);
 		CPoint mouse;
 		GetCursorPos(&mouse);
-		::SetForegroundWindow(icondata.hWnd);	
-		::TrackPopupMenu(submenu->m_hMenu,0,mouse.x,mouse.y,0,icondata.hWnd,NULL);
+		::SetForegroundWindow(icondata.hWnd);
+		::TrackPopupMenu(submenu, 0, mouse.x, mouse.y, 0, icondata.hWnd, NULL);
 	}
 	else
 	{
-		::SendMessage(icondata.hWnd,WM_COMMAND,submenu->GetMenuItemID(0),0);
+		::SendMessage(icondata.hWnd, WM_COMMAND, ::GetMenuItemID(submenu, 0), 0);
 	}
 
 	return 1;
@@ -145,7 +153,7 @@ LRESULT CTrayIcon::OnTrayNotification(WPARAM id, LPARAM event)
 
 bool CTrayIcon::SetIcon(LPCTSTR resname, LPCTSTR tip)
 {
-	return SetIcon(resname?AfxGetApp()->LoadIcon(resname):NULL,tip);
+	return SetIcon(resname?loadIcon(resname):NULL,tip);
 }
 
 void CTrayIcon::DisableTrayIcon() {

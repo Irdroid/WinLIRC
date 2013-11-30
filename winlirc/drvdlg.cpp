@@ -30,86 +30,35 @@
 #include "server.h" //so we can send SIGHUP
 #include "InputPlugin.h"
 
-/////////////////////////////////////////////////////////////////////////////
-// Cdrvdlg dialog
-
-
-Cdrvdlg::Cdrvdlg(CWnd* pParent)
-	: CDialog(Cdrvdlg::IDD, pParent),
-	  ti(IDR_TRAYMENU)
+HICON loadIcon(LPCTSTR iconId)
 {
-	//{{AFX_DATA_INIT(Cdrvdlg)
+	return LoadIcon(::GetModuleHandle(NULL), iconId);
+}
+
+HICON loadIcon(int iconId)
+{
+	return loadIcon(MAKEINTRESOURCE(iconId));
+}
+
+Cdrvdlg::Cdrvdlg()
+	: ti(IDR_TRAYMENU)
+{
 	m_ircode_edit	= _T("");
 	m_remote_edit	= _T("");
 	m_reps_edit		= 0;
-	//}}AFX_DATA_INIT
 }
-
-
-void Cdrvdlg::DoDataExchange(CDataExchange* pDX)
-{
-	CDialog::DoDataExchange(pDX);
-	//{{AFX_DATA_MAP(Cdrvdlg)
-	DDX_Control(pDX, IDC_IRCODE_EDIT, m_IrCodeEditCombo);
-	DDX_Control(pDX, IDC_REMOTE_EDIT, m_remote_DropDown);
-	DDX_Text(pDX, IDC_IRCODE_EDIT, m_ircode_edit);
-	DDV_MaxChars(pDX, m_ircode_edit, 64);
-	DDX_Text(pDX, IDC_REMOTE_EDIT, m_remote_edit);
-	DDV_MaxChars(pDX, m_remote_edit, 64);
-	DDX_Text(pDX, IDC_REPS_EDIT, m_reps_edit);
-	DDV_MinMaxInt(pDX, m_reps_edit, 0, 600);
-	//}}AFX_DATA_MAP
-}
-
-
-BEGIN_MESSAGE_MAP(Cdrvdlg, CDialog)
-	//{{AFX_MSG_MAP(Cdrvdlg)
-	ON_WM_CREATE()
-	ON_COMMAND(ID_TOGGLEWINDOW, OnToggleWindow)
-	ON_BN_CLICKED(IDC_CONFIG, OnConfig)
-	ON_BN_CLICKED(IDC_HIDEME, OnHideme)
-	ON_COMMAND(ID_EXITLIRC, OnExitLirc)
-	ON_WM_TIMER()
-	ON_BN_CLICKED(IDC_SENDCODE, OnSendcode)
-	ON_WM_COPYDATA()
-	ON_CBN_DROPDOWN(IDC_IRCODE_EDIT, OnDropdownIrcodeEdit)
-	ON_MESSAGE(WM_TRAY, OnTrayNotification)
-	//}}AFX_MSG_MAP
-	ON_MESSAGE(WM_POWERBROADCAST, OnPowerBroadcast)
-END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
 // Cdrvdlg message handlers
 
-void Cdrvdlg::OnOK() 
+void Cdrvdlg::ExitLirc()
 {
-
-	CDialog::OnOK();
 	ti.SetIcon(0);
 	DestroyWindow();
+	PostQuitMessage(0);
 }
 
-void Cdrvdlg::OnCancel() 
-{
-	CDialog::OnCancel();
-	ti.SetIcon(0);
-	DestroyWindow();
-}
-
-int Cdrvdlg::OnCreate(LPCREATESTRUCT lpCreateStruct) 
-{
-	if (CDialog::OnCreate(lpCreateStruct) == -1)
-		return -1;
-
-	ti.SetNotificationWnd(*this, WM_TRAY);
-
-	if(DoInitializeDaemon()==false)
-		return -1;
-	
-	return 0;	
-}
-
-afx_msg LRESULT Cdrvdlg::OnPowerBroadcast(WPARAM wPowerEvent,LPARAM lP)
+LRESULT Cdrvdlg::OnPowerBroadcast(WPARAM wPowerEvent,LPARAM lP)
 {
 	LRESULT retval = TRUE;
 
@@ -145,22 +94,22 @@ afx_msg LRESULT Cdrvdlg::OnPowerBroadcast(WPARAM wPowerEvent,LPARAM lP)
 			//system power source has changed, or 
 			//battery life has just got into the near-critical state
 
-			if(config.showTrayIcon) {
-				ti.SetIcon(AfxGetApp()->LoadIcon(IDI_LIRC_INIT),_T("WinLIRC / Initializing"));
-			}
+			if (config.showTrayIcon)
+				ti.SetIcon(loadIcon(IDI_LIRC_INIT), _T("WinLIRC / Initializing"));
 
 			Sleep(1000);
 
-			if(driver.init()==false) {
+			if (!driver.init())
+			{
 				WL_DEBUG("InitPort failed\n");
-				if(config.showTrayIcon) ti.SetIcon(AfxGetApp()->LoadIcon(IDI_LIRC_ERROR),_T("WinLIRC / Initialization Error"));
+				if (config.showTrayIcon)
+					ti.SetIcon(loadIcon(IDI_LIRC_ERROR), _T("WinLIRC / Initialization Error"));
 				retval = false;
 				break;
 			}
 
-			if(config.showTrayIcon) {
-				ti.SetIcon(AfxGetApp()->LoadIcon(IDI_LIRC_OK),_T("WinLIRC / Ready"));
-			}
+			if (config.showTrayIcon)
+				ti.SetIcon(loadIcon(IDI_LIRC_OK), _T("WinLIRC / Ready"));
 
 			retval = TRUE;
 			break;
@@ -183,25 +132,30 @@ LRESULT Cdrvdlg::OnTrayNotification(WPARAM uID, LPARAM lEvent)
 		return 0;
 }
 
-void Cdrvdlg::OnToggleWindow() 
+LRESULT Cdrvdlg::OnToggleWindow(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+{
+	ToggleWindow();
+	return 0;
+}
+
+void Cdrvdlg::ToggleWindow()
 {
 	if(IsWindowVisible())
 	{
 		ShowWindow(SW_HIDE);
-		UpdateWindow();
 	}
 	else
 	{
 		ShowWindow(SW_SHOW);
-		SetForegroundWindow();
-		UpdateWindow();
+		SetForegroundWindow(*this);
 	}
+	UpdateWindow();
 }
 
 void Cdrvdlg::OnHideme() 
 {
 	if(IsWindowVisible())
-		OnToggleWindow();
+		ToggleWindow();
 }
 
 void Cdrvdlg::GoGreen()
@@ -211,28 +165,27 @@ void Cdrvdlg::GoGreen()
 	}
 
 	if(SetTimer(1,250,NULL)) {
-		ti.SetIcon(AfxGetApp()->LoadIcon(IDI_LIRC_RECV),_T("WinLIRC / Received Signal"));
+		ti.SetIcon(loadIcon(IDI_LIRC_RECV), _T("WinLIRC / Received Signal"));
 	}
 }
 void Cdrvdlg::GoBlue()
 {
-	if(!config.showTrayIcon) {
-		return;
-	}
-
-	if(SetTimer(1,250,NULL)) {
-		ti.SetIcon(AfxGetApp()->LoadIcon(IDI_LIRC_SEND),_T("WinLIRC / Sent Signal"));
+	if (config.showTrayIcon)
+	{
+		if (SetTimer(1, 250, NULL))
+			ti.SetIcon(loadIcon(IDI_LIRC_SEND), _T("WinLIRC / Sent Signal"));
 	}
 }
 
-void Cdrvdlg::OnTimer(UINT_PTR nIDEvent) {
+int Cdrvdlg::OnTimer(UINT_PTR nIDEvent) {
 
-	if(nIDEvent==1) {
+	if (nIDEvent == 1)
+	{
 		KillTimer(1);
-		ti.SetIcon(AfxGetApp()->LoadIcon(IDI_LIRC_OK),_T("WinLIRC / Ready"));
+		ti.SetIcon(loadIcon(IDI_LIRC_OK), _T("WinLIRC / Ready"));
+		return 0;
 	}
-	
-	CDialog::OnTimer(nIDEvent);
+	return 1;
 }
 
 bool Cdrvdlg::DoInitializeDaemon()
@@ -255,14 +208,14 @@ bool Cdrvdlg::DoInitializeDaemon()
 		}
 		
 		if(!IsWindowVisible())
-			OnToggleWindow();
+			ToggleWindow();
 
 		if(MessageBox(	_T("WinLIRC failed to initialize.\n")
 						_T("Would you like to change the configuration\n")
 						_T("and try again?"),_T("WinLIRC Error"),MB_OKCANCEL)==IDCANCEL)
 			return false;
 		
-		InputPlugin inputPlugin(this);
+		InputPlugin inputPlugin;// (*this);
 		inputPlugin.DoModal();
 	}
 }
@@ -279,7 +232,7 @@ bool Cdrvdlg::InitializeDaemon() {
 		if(!config.readConfig()) {
 
 			if(!config.exitOnError) MessageBox(	_T("Error loading config file."),_T("Configuration Error"));
-			if(config.showTrayIcon) ti.SetIcon(AfxGetApp()->LoadIcon(IDI_LIRC_ERROR),_T("WinLIRC / Initialization Error"));
+			if(config.showTrayIcon) ti.SetIcon(loadIcon(IDI_LIRC_ERROR),_T("WinLIRC / Initialization Error"));
 			return false;
 		}
 	}
@@ -292,54 +245,62 @@ bool Cdrvdlg::InitializeDaemon() {
 	tmp = tmp + config.plugin;
 
 	if(driver.loadPlugin(tmp)==false) {
-		if(config.showTrayIcon) ti.SetIcon(AfxGetApp()->LoadIcon(IDI_LIRC_ERROR),_T("WinLIRC / Initialization Error"));
+		if(config.showTrayIcon) ti.SetIcon(loadIcon(IDI_LIRC_ERROR),_T("WinLIRC / Initialization Error"));
 		return false;
 	}
 
 	if(config.showTrayIcon) {
-		ti.SetIcon(AfxGetApp()->LoadIcon(IDI_LIRC_INIT),_T("WinLIRC / Initializing"));
+		ti.SetIcon(loadIcon(IDI_LIRC_INIT),_T("WinLIRC / Initializing"));
 	}
 
 	if(driver.init()==false) {
-		if(config.showTrayIcon) ti.SetIcon(AfxGetApp()->LoadIcon(IDI_LIRC_ERROR),_T("WinLIRC / Initialization Error"));
+		if(config.showTrayIcon) ti.SetIcon(loadIcon(IDI_LIRC_ERROR),_T("WinLIRC / Initialization Error"));
 		return false;
 	}
 	
-	app.server->sendToClients("BEGIN\nSIGHUP\nEND\n");
-	if(config.showTrayIcon) ti.SetIcon(AfxGetApp()->LoadIcon(IDI_LIRC_OK),_T("WinLIRC / Ready"));
+	::server->sendToClients("BEGIN\nSIGHUP\nEND\n");
+	if(config.showTrayIcon) ti.SetIcon(loadIcon(IDI_LIRC_OK),_T("WinLIRC / Ready"));
 	return true;
 }
 
 void Cdrvdlg::OnConfig() 
 {
-	driver.deinit();
+	InputPlugin inputPlugin;
+	if (inputPlugin.DoModal(*this) == IDOK)
+	{
+		driver.deinit();
 
-	InputPlugin inputPlugin(this);
-	inputPlugin.DoModal();
+		AllowTrayNotification = false;
+		KillTimer(1);
+		if (config.showTrayIcon) ti.SetIcon(loadIcon(IDI_LIRC_ERROR), _T("WinLIRC / Disabled During Configuration"));
 
-	AllowTrayNotification=false;
-	KillTimer(1);
-	if(config.showTrayIcon) ti.SetIcon(AfxGetApp()->LoadIcon(IDI_LIRC_ERROR),_T("WinLIRC / Disabled During Configuration"));
+		if (!DoInitializeDaemon())
+			ExitLirc();
 
-	if(DoInitializeDaemon()==false)
-		OnCancel();
-
-	UpdateRemoteComboLists();
+		UpdateRemoteComboLists();
+	}
 }
 
-
-void Cdrvdlg::OnExitLirc() 
+LRESULT Cdrvdlg::OnExitLirc(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-	OnCancel();
+	ExitLirc();
+	return 0;
 }
 
 
 BOOL Cdrvdlg::OnInitDialog() 
 {
-	CDialog::OnInitDialog();
-	m_ircode_edit="";
-	UpdateData(FALSE);
-	GetDlgItem(IDC_VERSION)->SetWindowText(WINLIRC_VERSION);
+	ti.SetNotificationWnd(*this, WM_TRAY);
+
+	if (DoInitializeDaemon() == false)
+	{
+		DestroyWindow();
+		return FALSE;
+	}
+
+	m_ircode_edit = "";
+	DoDataExchange(FALSE);
+	GetDlgItem(IDC_VERSION).SetWindowText(WINLIRC_VERSION);
 	UpdateRemoteComboLists();
 	return TRUE;
 }
@@ -347,7 +308,7 @@ BOOL Cdrvdlg::OnInitDialog()
 void Cdrvdlg::OnSendcode() 
 {
 	EnableWindow(FALSE);
-	UpdateData(TRUE);
+	DoDataExchange(TRUE);
 
 	//=======================
 	struct ir_ncode *codes;
@@ -382,7 +343,7 @@ void Cdrvdlg::OnSendcode()
 
 			if (m_reps_edit < sender->min_repeat) {
 				m_reps_edit = sender->min_repeat;		//set minimum number of repeats
-				UpdateData(FALSE);						//update the display
+				DoDataExchange(FALSE);						//update the display
 			}
 
 			//reset toggle masks
@@ -406,11 +367,11 @@ void Cdrvdlg::OnSendcode()
 		}
 	}
 
-	UpdateData(FALSE);
+	DoDataExchange(FALSE);
 	EnableWindow(TRUE);
 }
 
-BOOL Cdrvdlg::OnCopyData(CWnd* pWnd, COPYDATASTRUCT* pCopyDataStruct)
+BOOL Cdrvdlg::OnCopyData(HWND pWnd, COPYDATASTRUCT* pCopyDataStruct)
 // handles a transmission command recieved from another application
 // pCopyDataStruct->lpData should point to a string of the following format
 // remotename	ircodename	reps
@@ -424,13 +385,13 @@ BOOL Cdrvdlg::OnCopyData(CWnd* pWnd, COPYDATASTRUCT* pCopyDataStruct)
 	string  = "SEND_ONCE ";
 	string += (LPCSTR) (pCopyDataStruct->lpData);
 	
-	return app.server->parseSendString(string,response);
+	return ::server->parseSendString(string,response);
 }
 
 void Cdrvdlg::UpdateRemoteComboLists()
 {
 	USES_CONVERSION;
-	UpdateData(TRUE);
+	DoDataExchange(TRUE);
 	m_remote_DropDown.ResetContent();
 
 	//Fill remote combo box
@@ -446,7 +407,7 @@ void Cdrvdlg::UpdateRemoteComboLists()
 		//Did not find remote selected before, select first
 		m_remote_DropDown.SetCurSel(0);
 	}
-	UpdateData(FALSE);
+	DoDataExchange(FALSE);
 
 	UpdateIrCodeComboLists();
 }
@@ -454,7 +415,7 @@ void Cdrvdlg::UpdateRemoteComboLists()
 void Cdrvdlg::UpdateIrCodeComboLists()
 {
 	USES_CONVERSION;
-	UpdateData(TRUE);
+	DoDataExchange(TRUE);
 	
 	//Retrieve pointer to remote by name
 	struct ir_remote* selected_remote = get_remote_by_name(global_remotes,T2A(m_remote_edit.GetBuffer()));
@@ -476,7 +437,7 @@ void Cdrvdlg::UpdateIrCodeComboLists()
 		m_IrCodeEditCombo.SetCurSel(0);
 	}
 
-	UpdateData(FALSE);
+	DoDataExchange(FALSE);
 }
 
 void Cdrvdlg::OnDropdownIrcodeEdit() 
@@ -484,3 +445,29 @@ void Cdrvdlg::OnDropdownIrcodeEdit()
 	// TODO: Add your control notification handler code here
 	UpdateIrCodeComboLists();
 }
+
+LRESULT Cdrvdlg::MessageHandler(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+{
+	switch (uMsg)
+	{
+	case WM_INITDIALOG: return OnInitDialog();
+	case WM_TRAY: return OnTrayNotification(wParam, lParam);
+	case WM_POWERBROADCAST: return OnPowerBroadcast(wParam, lParam);
+	case WM_TIMER: return OnTimer(wParam);
+	case WM_COPYDATA: return OnCopyData(reinterpret_cast<HWND>(wParam), reinterpret_cast<COPYDATASTRUCT*>(lParam));
+	default: assert(false);  return 0;
+	}
+}
+
+LRESULT Cdrvdlg::CommandHandler(WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled)
+{
+	switch (wID)
+	{
+	case IDC_CONFIG: OnConfig(); return 0; //, BN_CLICKED //OnConfig)
+	case IDC_HIDEME: OnHideme(); return 0; //, BN_CLICKED //OnHideme)
+	case IDC_SENDCODE: OnSendcode(); return 0; //, BN_CLICKED //OnSendcode)
+	case IDC_IRCODE_EDIT: OnDropdownIrcodeEdit(); return 0; //, CBN_DROPDOWN //OnDropdownIrcodeEdit)
+	}
+	return 0;
+}
+

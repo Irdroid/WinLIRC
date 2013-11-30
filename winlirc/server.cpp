@@ -219,19 +219,19 @@ void Cserver::ThreadProc(void)
 	char toparse[MAX_DATA];
 	HANDLE events[MAX_CLIENTS+2];
 	
-	WSAEventSelect(m_server,ServerEvent,FD_ACCEPT);
+	WSAEventSelect(m_server,ServerEvent.get(),FD_ACCEPT);
 
 	for(i=0;i<MAX_CLIENTS;i++) ClientData[i][0]=0;
 	
 	for(;;)
 	{		
 		int count=0;
-		events[count++]=ServerThreadEvent;
-		events[count++]=ServerEvent;
+		events[count++] = ServerThreadEvent.get();
+		events[count++] = ServerEvent.get();
 
 		for(i=0;i<MAX_CLIENTS;i++)
 			if(m_clients[i]!=INVALID_SOCKET)
-				events[count++]=ClientEvent[i];
+				events[count++] = ClientEvent[i].get();
 		
 		unsigned int res=WaitForMultipleObjects(count,events,FALSE,INFINITE);
 		if(res==WAIT_OBJECT_0)
@@ -269,7 +269,7 @@ void Cserver::ThreadProc(void)
 				continue;
 			}
 
-			WSAEventSelect(m_clients[i],ClientEvent[i],FD_CLOSE|FD_READ);
+			WSAEventSelect(m_clients[i], ClientEvent[i].get(), FD_CLOSE | FD_READ);
 			ClientEvent[i].ResetEvent();
 			ClientData[i][0]='\0';
 			WL_DEBUG("Client connection %d accepted\n",i);
@@ -410,14 +410,14 @@ BOOL Cserver::parseSendString(const char *string, CStringA &response) {
 		sender->toggle_bit_mask_state = (sender->toggle_bit_mask_state^sender->toggle_bit_mask);
 	}
 
-	success = app.dlg->driver.sendIR(sender,codes,repeats);
+	success = ::dlg->driver.sendIR(sender,codes,repeats);
 
 	if(success==FALSE) {
 		response.Format("DATA\n1\nsend failed/not supported\n");
 		return FALSE;	
 	}
 
-	app.dlg->GoBlue();
+	::dlg->GoBlue();
 
 	return TRUE;
 }
@@ -570,19 +570,11 @@ BOOL Cserver::parseTransmitters(const char *string, CStringA &response) {
 		transmitterMask |= 1 << (transNumber-1);
 	}
 
-	if(success) {
-
-		//============
-		Cwinlirc *app;
-		//============
-
-		app = (Cwinlirc *)AfxGetApp();
-
-		success = app->dlg->driver.setTransmitters(transmitterMask);
-
-		if(!success) {
-			response.Format("DATA\n1\nSetTransmitters failed/not supported\n");
-		}
+	if (success)
+	{
+		success = ::dlg->driver.setTransmitters(transmitterMask);
+		if (!success)
+			response = "DATA\n1\nSetTransmitters failed/not supported\n";
 	}
 
 	return success;
