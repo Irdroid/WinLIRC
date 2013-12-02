@@ -31,17 +31,18 @@
 #include <cassert>
 
 CIRDriver::CIRDriver()
+    : hDataReadyEvent(FALSE, TRUE)
 { }
 
 bool CIRDriver::start(HANDLE threadExitEvent)
 {
-    if (threadExitEvent_ || hDataReadyEvent || hPort)
+    if (threadExitEvent_ || hPort)
         return false;
 
     try
     {
+        hDataReadyEvent.ResetEvent();
         threadExitEvent_ = WeakHandle<EventTraits>(threadExitEvent);
-        hDataReadyEvent = Event(FALSE, TRUE); 
 
         dataBuffer = DataBuffer();
         Settings settings;
@@ -52,16 +53,11 @@ bool CIRDriver::start(HANDLE threadExitEvent)
             irThread_ = std::thread([this, settings]() { this->threadProc(settings); });
             return true;
         }
-        else
-        {
-            return false;
-        }
-
     }
     catch (...)
-    {
-        return false;
-    }
+    { }
+
+    return false;
 }
 
 void CIRDriver::stop()
@@ -71,7 +67,6 @@ void CIRDriver::stop()
         ::SetEvent(threadExitEvent_.get());
         if (irThread_.joinable())
             irThread_.join();
-        hDataReadyEvent.close();
         hPort.close();
     }
 }
@@ -171,7 +166,7 @@ DWORD CIRDriver::threadProc(Settings const& s) const
 	time(&lr_lasttime);
 	QueryPerformanceCounter(&hr_lasttime);
 	
-    UniqueHandle<EventTraits> commIoEvent(CreateEvent(NULL,TRUE,FALSE,NULL));
+    Event commIoEvent(FALSE, TRUE);
     if (!commIoEvent)
         return 1;
 
