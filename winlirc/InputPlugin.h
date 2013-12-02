@@ -1,6 +1,8 @@
 #pragma once
 
-// InputPlugin dialog
+#include "resource.h"
+
+#include "../lib/Utility/Module.h"
 
 class InputPlugin
 	: public CDialogImpl<InputPlugin>
@@ -12,12 +14,13 @@ public:
 	enum { IDD = IDD_INPUT_PLUGIN };
 
 private:
-	void listDllFiles	();
-	bool checkDllFile	(CString file);
-	bool checkRecording	(CString file);
-	void enableWindows	(bool canRecord);					// enable windows based upon selection
-	void loadDll		(CString file);
-	void unloadDll		();
+	void listDllFiles();
+	/// Returns a module handle is DLL file exists and exports required functions.
+	Module checkDllFile(CString file);
+	bool checkRecording(Module const& file);
+	void enableWindows(bool canRecord);					// enable windows based upon selection
+	void loadDll(Module dll);
+	void unloadDll();
 
 	typedef int  (*HasGuiFunction)			();
 	typedef void (*LoadSetupGuiFunction)	();
@@ -25,7 +28,7 @@ private:
 	HasGuiFunction			m_hasGuiFunction;
 	LoadSetupGuiFunction	m_loadSetupGuiFunction;
 
-	HMODULE					m_dllFile;
+	Module					m_dllFile;
 
 private:
 

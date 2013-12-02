@@ -1,18 +1,20 @@
-// InputPlugin.cpp : implementation file
-//
-
 #include "stdafx.h"
-#include "winlirc.h"
 #include "InputPlugin.h"
+#include "winlirc.h"
 #include "irconfig.h"
 
-static HMODULE loadLibrary(CString const& lib)
-{
-	UINT const backup = ::SetErrorMode(~0);
-	HMODULE const res = ::LoadLibrary(lib);
-	::SetErrorMode(backup);
-	return res;
-}
+#include <algorithm>
+#include <functional>
+
+using namespace std::placeholders;
+
+//static Module loadLibrary(CString const& lib)
+//{
+//	UINT const backup = ::SetErrorMode(~0);
+//	Module res(::LoadLibrary(lib));
+//	::SetErrorMode(backup);
+//	return res;
+//}
 
 // InputPlugin dialog
 
@@ -20,7 +22,6 @@ InputPlugin::InputPlugin()
 {
 	m_hasGuiFunction		= NULL;
 	m_loadSetupGuiFunction	= NULL;
-	m_dllFile				= NULL;
 }
 
 void InputPlugin::listDllFiles()
@@ -45,45 +46,27 @@ void InputPlugin::listDllFiles()
 	}
 }
 
-bool InputPlugin::checkDllFile(CString file) {
+Module InputPlugin::checkDllFile(CString file)
+{
+	Module tmp(file, ~0);
+	if (tmp)
+	{
+		char const* const functionNames[] = { "init", "deinit", "hasGui", "loadSetupGui", "sendIR", "decodeIR" };
+		bool const exportsRequiredFunctions = std::all_of(
+			std::begin(functionNames),
+			std::end(functionNames),
+			std::bind(&Module::getProcAddress, std::ref(tmp), _1));
 
-	//==========
-	HMODULE tmp;
-	//==========
-
-	tmp = loadLibrary(file);
-
-	if(!tmp) return false;
-
-	if(!GetProcAddress(tmp,"init"))			{ FreeLibrary(tmp); return false; }
-	if(!GetProcAddress(tmp,"deinit"))		{ FreeLibrary(tmp); return false; }
-	if(!GetProcAddress(tmp,"hasGui"))		{ FreeLibrary(tmp); return false; }
-	if(!GetProcAddress(tmp,"loadSetupGui")) { FreeLibrary(tmp); return false; }
-	if(!GetProcAddress(tmp,"sendIR"))		{ FreeLibrary(tmp); return false; }
-	if(!GetProcAddress(tmp,"decodeIR"))		{ FreeLibrary(tmp); return false; }
-
-	FreeLibrary(tmp);
-
-	return true;
+		if (exportsRequiredFunctions)
+			return tmp;
+	}
+	
+	return Module();
 }
 
-bool InputPlugin::checkRecording(CString file) {
-
-	//==========
-	HMODULE tmp;
-	//==========
-
-	tmp = loadLibrary(file);
-
-	if(!tmp) return false;
-
-	if(!GetProcAddress(tmp,"getHardware")) { 
-		FreeLibrary(tmp); return false; 
-	}
-
-	FreeLibrary(tmp);
-
-	return true;
+bool InputPlugin::checkRecording(Module const& dll)
+{
+	return dll && dll.getProcAddress("getHardware") != nullptr;
 }
 
 void InputPlugin::enableWindows(bool canRecord)
@@ -94,27 +77,22 @@ void InputPlugin::enableWindows(bool canRecord)
 	m_browseButton.EnableWindow(canRecord);
 }
 
-void InputPlugin::loadDll(CString file) {
-
-	m_dllFile = loadLibrary(file);
-
-	if(!m_dllFile) return;
-
-	m_hasGuiFunction		= (HasGuiFunction)			GetProcAddress(m_dllFile,"hasGui");
-	m_loadSetupGuiFunction	= (LoadSetupGuiFunction)	GetProcAddress(m_dllFile,"loadSetupGui");
+void InputPlugin::loadDll(Module dll)
+{
+	m_dllFile = std::move(dll);
+	if (m_dllFile)
+	{
+		m_hasGuiFunction = m_dllFile.getProc<HasGuiFunction>("hasGui");
+		m_loadSetupGuiFunction = m_dllFile.getProc<LoadSetupGuiFunction>("loadSetupGui");
+	}
 }
 
-void InputPlugin::unloadDll() {
-
-	//
-	// make sure we have cleaned up
-	//
+void InputPlugin::unloadDll()
+{
 	m_hasGuiFunction		= NULL;
 	m_loadSetupGuiFunction	= NULL;
 
-	FreeLibrary(m_dllFile);
-
-	m_dllFile				= NULL;
+	m_dllFile = Module();
 }
 
 // InputPlugin message handlers
@@ -127,13 +105,13 @@ LRESULT InputPlugin::OnCbnSelchangeInputPlugin(WORD /*wNotifyCode*/, WORD /*wID*
 
 	CString m_cboxInputPluginStr; m_cboxInputPlugin.GetLBText(m_cboxInputPluginIndex, m_cboxInputPluginStr);
 	CString const file = _T(".\\") + m_cboxInputPluginStr;
-	bool const validFile	= checkDllFile(file);
-	bool const canRecord	= checkRecording(file);
+	Module dll = checkDllFile(file);
+	bool const canRecord = checkRecording(dll);
 
-	if (!validFile)
+	if (!dll)
 		MessageBox(_T("Invalid dll file"), _T("Error"), 0);
 
-	loadDll(file);
+	loadDll(std::move(dll));
 	enableWindows(canRecord);
 	return 0;
 }
@@ -210,7 +188,7 @@ LRESULT InputPlugin::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lPa
 	DoDataExchange(FALSE);
 
 	listDllFiles();
-	loadDll(config.plugin);
+	loadDll(Module(config.plugin));
 
 	m_cboxInputPluginIndex = m_cboxInputPlugin.FindStringExact(0, config.plugin);
 	if (m_cboxInputPluginIndex == CB_ERR)
