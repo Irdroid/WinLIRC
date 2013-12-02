@@ -33,7 +33,6 @@ struct Dll
 {
 	Dll(CString file = CString())
 		: dllFile(file, ~0)
-		, dllFileName(std::move(file))
 		, initFunction(nullptr)
 		, deinitFunction(nullptr)
 		, hasGuiFunction(nullptr)
@@ -64,7 +63,6 @@ struct Dll
 		if (this != &rhs)
 		{
 			dllFile = std::move(rhs.dllFile);
-			dllFileName = std::move(rhs.dllFileName);
 			initFunction = rhs.initFunction;
 			deinitFunction = rhs.deinitFunction;
 			hasGuiFunction = rhs.hasGuiFunction;
@@ -95,7 +93,6 @@ struct Dll
 	typedef int(*SetTransmittersFunction)(unsigned int transmitterMask);
 
 	Module		dllFile;
-	CString		dllFileName;
 	InitFunction			initFunction;
 	DeinitFunction			deinitFunction;
 	HasGuiFunction			hasGuiFunction;
