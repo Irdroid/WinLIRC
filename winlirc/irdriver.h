@@ -27,14 +27,92 @@
 #include "globals.h"
 #include "winlirc.h"
 
+#include "../lib/Utility/Module.h"
 
-class CIRDriver {
+struct Dll
+{
+	Dll(CString file = CString())
+		: dllFile(file, ~0)
+		, dllFileName(std::move(file))
+		, initFunction(nullptr)
+		, deinitFunction(nullptr)
+		, hasGuiFunction(nullptr)
+		, loadSetupGuiFunction(nullptr)
+		, sendFunction(nullptr)
+		, decodeFunction(nullptr)
+		, setTransmittersFunction(nullptr)
+	{
+		if (dllFile)
+		{
+			initFunction = dllFile.getProc<InitFunction>("init");
+			deinitFunction = dllFile.getProc<DeinitFunction>("deinit");
+			hasGuiFunction = dllFile.getProc<HasGuiFunction>("hasGui");
+			loadSetupGuiFunction = dllFile.getProc<LoadSetupGuiFunction>("loadSetupGui");
+			sendFunction = dllFile.getProc<SendFunction>("sendIR");
+			decodeFunction = dllFile.getProc<DecodeFunction>("decodeIR");
+			setTransmittersFunction = dllFile.getProc<SetTransmittersFunction>("setTransmitters");
+		}
+	}
+
+	Dll(Dll&& src)
+	{
+		*this = std::move(src);
+	}
+
+	Dll& operator=(Dll& rhs)
+	{
+		if (this != &rhs)
+		{
+			dllFile = std::move(rhs.dllFile);
+			dllFileName = std::move(rhs.dllFileName);
+			initFunction = rhs.initFunction;
+			deinitFunction = rhs.deinitFunction;
+			hasGuiFunction = rhs.hasGuiFunction;
+			loadSetupGuiFunction = rhs.loadSetupGuiFunction;
+			sendFunction = rhs.sendFunction;
+			decodeFunction = rhs.decodeFunction;
+			setTransmittersFunction = rhs.setTransmittersFunction;
+		}
+
+		return *this;
+	}
+
+	struct S { int i; };
+	typedef int S::*BoolType;
+
+	operator BoolType() const
+	{
+		bool res = dllFile && initFunction && deinitFunction && hasGuiFunction && loadSetupGuiFunction && sendFunction && decodeFunction;
+		return res ? &S::i : nullptr;
+	}
+
+	typedef int(*InitFunction)(HANDLE);
+	typedef void(*DeinitFunction)();
+	typedef int(*HasGuiFunction)();
+	typedef void(*LoadSetupGuiFunction)();
+	typedef int(*SendFunction)(ir_remote *remote, ir_ncode *code, int repeats);
+	typedef int(*DecodeFunction)(ir_remote *remote, char *out);
+	typedef int(*SetTransmittersFunction)(unsigned int transmitterMask);
+
+	Module		dllFile;
+	CString		dllFileName;
+	InitFunction			initFunction;
+	DeinitFunction			deinitFunction;
+	HasGuiFunction			hasGuiFunction;
+	LoadSetupGuiFunction	loadSetupGuiFunction;
+	SendFunction			sendFunction;
+	DecodeFunction			decodeFunction;
+	SetTransmittersFunction setTransmittersFunction;
+};
+
+class CIRDriver
+{
 
 public:
 	CIRDriver();
    ~CIRDriver();
 
-	BOOL	loadPlugin		(CString plugin);
+	bool	loadPlugin		(CString plugin);
 	void	unloadPlugin	();
 	BOOL	init			();
 	void	deinit			();
@@ -46,33 +124,12 @@ public:
 
 private:
 
-	typedef int	 (*InitFunction)			(HANDLE);
-	typedef void (*DeinitFunction)			(void);
-	typedef int  (*HasGuiFunction)			(void);
-	typedef void (*LoadSetupGuiFunction)	(void);
-	typedef int	 (*SendFunction)			(struct ir_remote *remote,struct ir_ncode *code, int repeats);
-	typedef int  (*DecodeFunction)			(struct ir_remote *remote, char *out);
-	typedef int  (*SetTransmittersFunction)	(unsigned int transmitterMask);
-
 	/// Protects access to the functions imported from plug-in dll, and the
 	/// DLL handle.
-	/// TODO: move all the load/unload logic and related stuff to Dll class.
-	mutable std::mutex			dllLock;
-	struct Dll {
-		InitFunction			initFunction;
-		DeinitFunction			deinitFunction;
-		HasGuiFunction			hasGuiFunction;
-		LoadSetupGuiFunction	loadSetupGuiFunction;
-		SendFunction			sendFunction;
-		DecodeFunction			decodeFunction;
-		SetTransmittersFunction setTransmittersFunction;
-		HMODULE		dllFile;
-	};
-
+	mutable std::mutex dllLock;
 	Dll dll;
 
 	//==============================
-	CString		loadedPlugin;
 	Event		daemonThreadEvent;
 	std::thread	daemonThreadHandle;
 	//==============================

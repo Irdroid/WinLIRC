@@ -35,18 +35,9 @@ unsigned int DaemonThread(void* drv) {
 }
 	
 CIRDriver::CIRDriver()
-    : daemonThreadEvent(FALSE, TRUE)
-{
-	dll.initFunction			= NULL;
-	dll.deinitFunction			= NULL;
-	dll.hasGuiFunction			= NULL;
-	dll.loadSetupGuiFunction	= NULL;
-	dll.sendFunction			= NULL;
-	dll.decodeFunction			= NULL;
-	dll.setTransmittersFunction	= NULL;
-
-	dll.dllFile					= NULL;
-}
+	: daemonThreadEvent(FALSE, TRUE)
+	, dll()
+{ }
 
 CIRDriver::~CIRDriver()
 {
@@ -57,7 +48,7 @@ CIRDriver::~CIRDriver()
 	}
 }
 
-BOOL CIRDriver::loadPlugin(CString plugin) {
+bool CIRDriver::loadPlugin(CString plugin) {
 
 	//
 	//make sure we have cleaned up first
@@ -66,24 +57,8 @@ BOOL CIRDriver::loadPlugin(CString plugin) {
 	std::unique_lock<std::mutex> l(dllLock);
 	unloadPlugin();
 
-	loadedPlugin	= plugin;
-	dll.dllFile		= LoadLibrary(plugin);
-
-	if(!dll.dllFile) return FALSE;
-
-	dll.initFunction			= (InitFunction)			GetProcAddress(dll.dllFile,"init");
-	dll.deinitFunction			= (DeinitFunction)			GetProcAddress(dll.dllFile,"deinit");
-	dll.hasGuiFunction			= (HasGuiFunction)			GetProcAddress(dll.dllFile,"hasGui");
-	dll.loadSetupGuiFunction	= (LoadSetupGuiFunction)	GetProcAddress(dll.dllFile,"loadSetupGui");
-	dll.sendFunction			= (SendFunction)			GetProcAddress(dll.dllFile,"sendIR");
-	dll.decodeFunction			= (DecodeFunction)			GetProcAddress(dll.dllFile,"decodeIR");
-	dll.setTransmittersFunction	= (SetTransmittersFunction)	GetProcAddress(dll.dllFile,"setTransmitters");
-
-	if(dll.initFunction && dll.deinitFunction && dll.hasGuiFunction && dll.loadSetupGuiFunction && dll.sendFunction && dll.decodeFunction) {
-		return TRUE;
-	}
-
-	return FALSE;
+	dll = Dll(plugin);
+	return dll;
 }
 
 void CIRDriver::unloadPlugin() {
@@ -96,19 +71,7 @@ void CIRDriver::unloadPlugin() {
 	// daemon thread should not be dead now.
 	ASSERT(!daemonThreadHandle.joinable());
 
-	dll.initFunction			= NULL;
-	dll.deinitFunction			= NULL;
-	dll.hasGuiFunction			= NULL;
-	dll.loadSetupGuiFunction	= NULL;
-	dll.sendFunction			= NULL;
-	dll.decodeFunction			= NULL;
-	dll.setTransmittersFunction	= NULL;
-
-	if(dll.dllFile) {
-		FreeLibrary(dll.dllFile);
-	}
-
-	dll.dllFile					= NULL;
+	dll = Dll();
 }
 
 BOOL CIRDriver::init()
