@@ -1,5 +1,6 @@
 #pragma once
 
+#include "dll.h"
 #include "resource.h"
 
 #include "../lib/Utility/Module.h"
@@ -16,19 +17,12 @@ public:
 private:
 	void listDllFiles();
 	/// Returns a module handle is DLL file exists and exports required functions.
-	Module checkDllFile(CString file);
-	bool checkRecording(Module const& file);
+	Dll checkDllFile(CString file);
+	bool checkRecording(Dll const& file) const;
 	void enableWindows(bool canRecord);					// enable windows based upon selection
-	void loadDll(Module dll);
 	void unloadDll();
 
-	typedef int  (*HasGuiFunction)			();
-	typedef void (*LoadSetupGuiFunction)	();
-
-	HasGuiFunction			m_hasGuiFunction;
-	LoadSetupGuiFunction	m_loadSetupGuiFunction;
-
-	Module					m_dllFile;
+	Dll					m_dllFile;
 
 private:
 

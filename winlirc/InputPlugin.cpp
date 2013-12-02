@@ -8,21 +8,8 @@
 
 using namespace std::placeholders;
 
-//static Module loadLibrary(CString const& lib)
-//{
-//	UINT const backup = ::SetErrorMode(~0);
-//	Module res(::LoadLibrary(lib));
-//	::SetErrorMode(backup);
-//	return res;
-//}
-
-// InputPlugin dialog
-
 InputPlugin::InputPlugin()
-{
-	m_hasGuiFunction		= NULL;
-	m_loadSetupGuiFunction	= NULL;
-}
+{ }
 
 void InputPlugin::listDllFiles()
 {
@@ -46,53 +33,27 @@ void InputPlugin::listDllFiles()
 	}
 }
 
-Module InputPlugin::checkDllFile(CString file)
+Dll InputPlugin::checkDllFile(CString file)
 {
-	Module tmp(file, ~0);
-	if (tmp)
-	{
-		char const* const functionNames[] = { "init", "deinit", "hasGui", "loadSetupGui", "sendIR", "decodeIR" };
-		bool const exportsRequiredFunctions = std::all_of(
-			std::begin(functionNames),
-			std::end(functionNames),
-			std::bind(&Module::getProcAddress, std::ref(tmp), _1));
-
-		if (exportsRequiredFunctions)
-			return tmp;
-	}
-	
-	return Module();
+	return Dll(file);
 }
 
-bool InputPlugin::checkRecording(Module const& dll)
+bool InputPlugin::checkRecording(Dll const& dll) const
 {
-	return dll && dll.getProcAddress("getHardware") != nullptr;
+	return dll.dllFile && dll.dllFile.getProcAddress("getHardware") != nullptr;
 }
 
 void InputPlugin::enableWindows(bool canRecord)
 {
-	m_setupButton.EnableWindow(m_hasGuiFunction && m_hasGuiFunction());
+	m_setupButton.EnableWindow(m_dllFile.hasGuiFunction && m_dllFile.hasGuiFunction());
 	m_configPath.EnableWindow(canRecord);
 	m_createConfigButton.EnableWindow(canRecord);
 	m_browseButton.EnableWindow(canRecord);
 }
 
-void InputPlugin::loadDll(Module dll)
-{
-	m_dllFile = std::move(dll);
-	if (m_dllFile)
-	{
-		m_hasGuiFunction = m_dllFile.getProc<HasGuiFunction>("hasGui");
-		m_loadSetupGuiFunction = m_dllFile.getProc<LoadSetupGuiFunction>("loadSetupGui");
-	}
-}
-
 void InputPlugin::unloadDll()
 {
-	m_hasGuiFunction		= NULL;
-	m_loadSetupGuiFunction	= NULL;
-
-	m_dllFile = Module();
+	m_dllFile = Dll();
 }
 
 // InputPlugin message handlers
@@ -105,13 +66,13 @@ LRESULT InputPlugin::OnCbnSelchangeInputPlugin(WORD /*wNotifyCode*/, WORD /*wID*
 
 	CString m_cboxInputPluginStr; m_cboxInputPlugin.GetLBText(m_cboxInputPluginIndex, m_cboxInputPluginStr);
 	CString const file = _T(".\\") + m_cboxInputPluginStr;
-	Module dll = checkDllFile(file);
+	Dll dll = checkDllFile(file);
 	bool const canRecord = checkRecording(dll);
 
 	if (!dll)
 		MessageBox(_T("Invalid dll file"), _T("Error"), 0);
 
-	loadDll(std::move(dll));
+	m_dllFile = std::move(dll);
 	enableWindows(canRecord);
 	return 0;
 }
@@ -173,10 +134,10 @@ LRESULT InputPlugin::OnBnClickedCancel(WORD /*wNotifyCode*/, WORD /*wID*/, HWND 
 
 LRESULT InputPlugin::OnBnClickedPluginSetup(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-	if(m_loadSetupGuiFunction) {
+	if (m_dllFile.loadSetupGuiFunction) {
 
 		this->EnableWindow(FALSE);
-		m_loadSetupGuiFunction();
+		m_dllFile.loadSetupGuiFunction();
 		this->EnableWindow(TRUE);
 		this->SetFocus();
 	}
@@ -188,7 +149,7 @@ LRESULT InputPlugin::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lPa
 	DoDataExchange(FALSE);
 
 	listDllFiles();
-	loadDll(Module(config.plugin));
+	m_dllFile = Dll(config.plugin);
 
 	m_cboxInputPluginIndex = m_cboxInputPlugin.FindStringExact(0, config.plugin);
 	if (m_cboxInputPluginIndex == CB_ERR)
