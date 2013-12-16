@@ -50,7 +50,15 @@ bool CIRDriver::start(HANDLE threadExitEvent)
 
         if (hPort)
         {
-            irThread_ = std::thread([this, settings]() { this->threadProc(settings); });
+            irThread_ = std::thread([this, settings]()
+            {
+                HANDLE const hProcess = ::GetCurrentProcess();
+                DWORD const oldPriorityClass = ::GetPriorityClass(hProcess);
+                ::SetPriorityClass(hProcess, REALTIME_PRIORITY_CLASS);
+                ::SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+                this->threadProc(settings);
+                ::SetPriorityClass(hProcess, oldPriorityClass);
+            });
             return true;
         }
     }
@@ -141,7 +149,6 @@ void CIRDriver::resetPort()
 DWORD CIRDriver::threadProc(Settings const& s) const
 {
     int32_t sense = s.sense;
-    ::SetThreadPriority(GetCurrentThread(), 16/*THREAD_BASE_PRIORITY_IDLE | THREAD_PRIORITY_TIME_CRITICAL*/);
 	/* Virtually no error checking is done here, because */
 	/* it's pretty safe to assume that everything works, */
 	/* and we have nowhere to report errors anyway.      */

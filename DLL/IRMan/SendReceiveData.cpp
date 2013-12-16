@@ -44,14 +44,14 @@ SendReceiveData::SendReceiveData() {
 bool SendReceiveData::init() {
 
 	//===================
-	TCHAR comPortName[8];
+	TCHAR comPortName[32];
 	char tempBuffer[32];
 	//===================
 
 	irCode = 0;
 	gettimeofday(&end,NULL);	// initialise
 
-	_sntprintf(comPortName,_countof(comPortName),_T("COM%i"),settings.getComPort());
+	_sntprintf(comPortName,_countof(comPortName),_T("\\\\.\\COM%i"),settings.getComPort());
 
 	//_tprintf(_T("com port name %s\n"),comPortName);
 
@@ -147,7 +147,7 @@ void SendReceiveData::killThread() {
 	}
 }
 
-void SendReceiveData::waitTillDataIsReady(int maxUSecs) {
+bool SendReceiveData::waitTillDataIsReady(int maxUSecs) {
 
 	HANDLE events[2]={dataReadyEvent,threadExitEvent};
 	int evt;
@@ -164,12 +164,11 @@ void SendReceiveData::waitTillDataIsReady(int maxUSecs) {
 			res=WaitForMultipleObjects(evt,events,FALSE,INFINITE);
 		if(res==(WAIT_OBJECT_0+1))
 		{
-			//DEBUG("Unknown thread terminating (readdata)\n");
-			ExitThread(0);
-			return;
+			return false;
 		}
-
 	}
+
+	return true;
 }
 
 

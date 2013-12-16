@@ -25,33 +25,34 @@
 #include "Globals.h"
 #include "../Common/LIRCDefines.h"
 
+#define MAX_SPACE 10000	// this should work with 90%+ of remote protocols
+
 //
 // A simple algorithm for decoding audio
 //
 
 AnalyseAudio::AnalyseAudio(int frequency, int numberOfChannels, bool leftChannel, bool invertedSignal, int noiseValue) {
 
-	multiplyConstant	= 1000000 / (double)frequency;
-	maxCount			= (~0) / (DWORD)multiplyConstant;
-	sampleCount			= 0;
+	m_multiplyConstant	= 1000000 / (double)frequency;
+	m_maxCount			= (~0) / (DWORD)m_multiplyConstant;
+	m_sampleCount		= 0;
+	m_gapInSamples		= 0;
 
-	numberOfChans		= numberOfChannels;
-	inverted			= invertedSignal;
-	this->leftChannel	= leftChannel;
-	this->noiseValue	= noiseValue;
+	m_numberOfChans		= numberOfChannels;
+	m_inverted			= invertedSignal;
+	m_leftChannel		= leftChannel;
+	m_noiseValue		= noiseValue;
 
 	//
 	//basic error checking
 	//
-	if(numberOfChans<1)	numberOfChans = 1;
-	if(numberOfChans>2)	numberOfChans = 2;
+	if(m_numberOfChans<1)	m_numberOfChans = 1;
+	if(m_numberOfChans>2)	m_numberOfChans = 2;
 
-	bufferStart		= 0;
-	bufferEnd		= 0;
+	m_bufferStart	= 0;
+	m_bufferEnd		= 0;
 
-	dataTest();
-
-	pulse = false;
+	m_pulse = false;
 }
 
 void AnalyseAudio::decodeData(UCHAR *data, int bytesRecorded) {
@@ -60,7 +61,7 @@ void AnalyseAudio::decodeData(UCHAR *data, int bytesRecorded) {
 	UCHAR currentSample;
 	//==================
 
-	for(int i=0; i<bytesRecorded; i+=numberOfChans) {
+	for(int i=0; i<bytesRecorded; i+=m_numberOfChans) {
 
 		//=================
 		bool changeToPulse;
@@ -68,59 +69,79 @@ void AnalyseAudio::decodeData(UCHAR *data, int bytesRecorded) {
 
 		changeToPulse = false;
 
-		if(numberOfChans>1 && !leftChannel) {
+		if(m_numberOfChans>1 && !m_leftChannel) {
 			currentSample = data[i+1];
 		}
 		else {
 			currentSample = data[i];
 		}
 
-		if(sampleCount > maxCount) {
-			sampleCount = 0;			// every so often we will reset
-			pulse = false;
+		if(m_sampleCount > m_maxCount) {
+			m_sampleCount = 0;			// every so often we will reset
+			m_pulse = false;
 		}
 
-		if(inverted) {
-			if(currentSample < (128 - noiseValue)) changeToPulse = true;
+		if(m_inverted) {
+			if(currentSample < (128 - m_noiseValue)) changeToPulse = true;
 		}
 		else {
-			if(currentSample > (128 + noiseValue)) changeToPulse = true;
+			if(currentSample > (128 + m_noiseValue)) changeToPulse = true;
 		}
 
 		if(changeToPulse) {
 
-			if(!pulse) {
+			if(!m_pulse) {
 				//
 				//changing from space to pulse so add this
 				//
-				lirc_t x = (lirc_t)((sampleCount) * multiplyConstant);
-				sampleCount = 0;
+				lirc_t x = (lirc_t)(m_sampleCount * m_multiplyConstant);
+				m_sampleCount = 0;
 
 				if(x>PULSE_MASK) x = PULSE_MASK;	//clamp the value otherwise we will get false PULSES if we overflow
 
 				setData(x);
-				SetEvent(dataReadyEvent);			//signal data is ready for other thread
 			}
-			pulse = true;
+			m_pulse = true;
 		}
 		else {
 
-			if(pulse) {
+			if(m_pulse) {
 				//
 				//changing from pulse to space so add this pulse finished so add
 				//
-				lirc_t x = (lirc_t)((sampleCount) * multiplyConstant);
-				sampleCount = 0;
+				lirc_t x = (lirc_t)(m_sampleCount * m_multiplyConstant);
+				m_sampleCount = 0;
 
 				if(x>PULSE_MASK) x = PULSE_MASK;	//clamp the value otherwise we will get false PULSES if we overflow
 				
 				setData(x|PULSE_BIT);
-				SetEvent(dataReadyEvent);			//signal data is ready for other thread
 			}
-			pulse = false;
+			m_pulse = false;
 		}
 
-		sampleCount++;
+		sendBuffer(!changeToPulse);	// have we got enough data to kick off decoding
+
+		m_sampleCount++;
+	}
+}
+
+// we try and buffer an entire remote signal before kicking off decoding
+// if we don't and the signal overlaps 2 incoming buffers
+// it'll decode immediately then be sat there waiting for the length of the buffer
+// waiting for the next data, which might be too long
+void AnalyseAudio::sendBuffer(bool space) {
+
+	if(space) {
+		m_gapInSamples++;
+
+		lirc_t x = (lirc_t)(m_gapInSamples * m_multiplyConstant);
+
+		if(x>MAX_SPACE && dataReady()) {
+			SetEvent(dataReadyEvent);		// set data as ready and kick off decoding in other thread
+		}
+	}
+	else {
+		m_gapInSamples = 0;
 	}
 }
 
@@ -128,104 +149,22 @@ bool AnalyseAudio::getData(UINT *out) {
 
 	if(!dataReady()) return false;
 
-	*out = dataBuffer[bufferStart];
+	*out = m_dataBuffer[m_bufferStart];
 
-	bufferStart++;	//yes these will wrap around with only 8 bits, that's what we want
+	m_bufferStart++;	//yes these will wrap around with only 8 bits, that's what we want
 
 	return true;
 }
 
 void AnalyseAudio::setData(UINT data) {
 
-	dataBuffer[bufferEnd] = data;
-	bufferEnd++;
+	m_dataBuffer[m_bufferEnd] = data;
+	m_bufferEnd++;
 }
 
 bool AnalyseAudio::dataReady() {
 
-	if(bufferStart==bufferEnd) return false;
+	if(m_bufferStart==m_bufferEnd) return false;
 	
 	return true;
-}
-
-void AnalyseAudio::dataTest() {
-
-	//
-	// Dump raw data here for decoding test
-	//
-
-	/*
-	setData(1979421);
-	setData(16786296);
-	setData(4486);
-	setData(16777808);
-	setData(540);
-	setData(16777811);
-	setData(519);
-	setData(16777808);
-	setData(1659);
-	setData(16777832);
-	setData(542);
-	setData(16777784);
-	setData(544);
-	setData(16777810);
-	setData(542);
-	setData(16777809);
-	setData(541);
-	setData(16777785);
-	setData(546);
-	setData(16777811);
-	setData(1678);
-	setData(16777788);
-	setData(1678);
-	setData(16777810);
-	setData(540);
-	setData(16777787);
-	setData(1678);
-	setData(16777787);
-	setData(1680);
-	setData(16777813);
-	setData(1678);
-	setData(16777788);
-	setData(1675);
-	setData(16777786);
-	setData(1683);
-	setData(16777812);
-	setData(1676);
-	setData(16777786);
-	setData(540);
-	setData(16777811);
-	setData(1687);
-	setData(16777777);
-	setData(1679);
-	setData(16777787);
-	setData(545);
-	setData(16777809);
-	setData(542);
-	setData(16777815);
-	setData(1673);
-	setData(16777796);
-	setData(537);
-	setData(16777812);
-	setData(515);
-	setData(16777809);
-	setData(1679);
-	setData(16777811);
-	setData(540);
-	setData(16777787);
-	setData(566);
-	setData(16777763);
-	setData(1702);
-	setData(16777811);
-	setData(1656);
-	setData(16777809);
-	setData(540);
-	setData(16777811);
-	setData(1658);
-	setData(16777810);
-	setData(40061);
-	setData(16786287);
-	setData(2225);
-	setData(16777810);
-	*/
 }

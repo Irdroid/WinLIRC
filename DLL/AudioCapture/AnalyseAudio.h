@@ -40,22 +40,22 @@ public:
 private:
 
 	void setData(UINT data);
-
-	void dataTest();
+	void sendBuffer(bool space);
 
 	//=======================
-	double	multiplyConstant; 
-	double	sampleCount;
-	DWORD	maxCount;
-	DWORD	numberOfChans;
-	bool	leftChannel;
-	bool	pulse;
-	int		noiseValue;
-	bool	inverted;
+	double	m_multiplyConstant; 
+	double	m_sampleCount;
+	DWORD	m_maxCount;
+	DWORD	m_numberOfChans;
+	bool	m_leftChannel;
+	bool	m_pulse;
+	int		m_noiseValue;
+	bool	m_inverted;
+	int		m_gapInSamples;
 	//=======================
-	UINT	dataBuffer[256];
-	UCHAR	bufferStart;
-	UCHAR	bufferEnd;
+	UINT	m_dataBuffer[256];
+	UCHAR	m_bufferStart;
+	UCHAR	m_bufferEnd;
 	//=======================
 };
 
