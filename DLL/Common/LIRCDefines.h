@@ -22,6 +22,7 @@
 #ifndef LIRCDEFINES_H
 #define LIRCDEFINES_H
 
+#include <cstddef>
 #include <Math.h>
 
 //

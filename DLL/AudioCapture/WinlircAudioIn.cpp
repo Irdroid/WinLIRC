@@ -28,6 +28,7 @@
 #include "../Common/Win32Helpers.h"
 #include "resource.h"
 #include <tchar.h>
+#include <cstdio>
 #include "Globals.h"
 #include "AudioFormats.h"
 #include "StringFunctions.h"

@@ -7,6 +7,7 @@ add_library(Common
 	Linux.cpp
 	Receive.cpp
 	Send.cpp
+    Win32Helpers.cpp
 
     DebugOutput.h
     enumSerialPorts.h
@@ -17,4 +18,5 @@ add_library(Common
     Receive.h
     Send.h
     WLPluginAPI.h
-	)
+    Win32Helpers.h
+    )
