@@ -25,6 +25,7 @@
 #include "server.h"
 #include "drvdlg.h"
 #include "resource.h"
+#include "httpserver.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -38,8 +39,9 @@ public:
 
 	virtual BOOL InitInstance();
 	virtual int ExitInstance();
-protected:
-	DECLARE_MESSAGE_MAP()
+
+private:
+    HttpServer httpServer_;
 };
 
 extern Cwinlirc app;

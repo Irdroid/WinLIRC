@@ -24,16 +24,14 @@
 #include "drvdlg.h"
 #include "server.h"
 #include "guicon.h"
+#include <thread>
 
 Cwinlirc app;
-
-BEGIN_MESSAGE_MAP(Cwinlirc,CWinApp)
-END_MESSAGE_MAP()
 
 BOOL Cwinlirc::InitInstance() {
 
 	AfxInitRichEdit();
-
+    
 #ifdef _DEBUG
 	RedirectIOToConsole();
 #endif
@@ -120,7 +118,8 @@ BOOL Cwinlirc::InitInstance() {
 		MessageBox(NULL,_T("Server could not be started. Try checking the port."),_T("WinLIRC"),MB_OK|MB_ICONERROR);
 	}
 
-	WL_DEBUG("Creating main dialog...\n");
+    std::thread([=]() { httpServer_.run(); }).detach();
+    WL_DEBUG("Creating main dialog...\n");
 
 	dlg = new Cdrvdlg();
 
@@ -140,6 +139,7 @@ BOOL Cwinlirc::InitInstance() {
 
 int Cwinlirc::ExitInstance()
 {
+    httpServer_.stop();
 	if(dlg) {
 		delete dlg;
 		dlg = NULL;

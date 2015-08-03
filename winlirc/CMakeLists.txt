@@ -8,6 +8,12 @@ set(CMAKE_MFC_FLAG 2)
 add_definitions(
 	-DUNICODE
 	-D_UNICODE
+    -DMONGOOSE_NO_AUTH
+    -DMONGOOSE_NO_CGI
+    -DMONGOOSE_NO_DAV
+    -DMONGOOSE_NO_DIRECTORY_LISTING
+    -DMONGOOSE_NO_SSI
+    -DMONGOOSE_NO_WEBSOCKET
 	)
 
 add_executable(winlirc WIN32
@@ -15,9 +21,11 @@ add_executable(winlirc WIN32
 	drvdlg.cpp
 	globals.cpp
 	guicon.cpp
+    httpserver.cpp
 	InputPlugin.cpp
 	irconfig.cpp
 	irdriver.cpp
+    mongoose/mongoose.c
 	server.cpp
 	trayicon.cpp
 	winlirc.cpp
@@ -29,9 +37,11 @@ add_executable(winlirc WIN32
     dumpcfg.h
     globals.h
     guicon.h
+    httpserver.h
     InputPlugin.h
     irconfig.h
     irdriver.h
+    mongoose/mongoose.h
     remote.h
     resource.h
     server.h

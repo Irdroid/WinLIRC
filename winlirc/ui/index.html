@@ -1,0 +1,22 @@
+<html>
+ <head>
+  <link rel="stylesheet" type="text/css" href="winlirc.css"></link>
+  <script type="text/javascript" src="winlirc.js"></script>
+ </head>
+ <body>
+  <h1>Winlirc</h1>
+  <h2>Configure winlirc</h2>
+  Port: <input type="number" value="8765" /><br/>
+  Autostart: <input type="checkbox" checked /><br/>
+  <a href="#">Create remote config (record IR codes)</a><br/>
+  <h2>Configure plugins</h2>
+  <!-- TODO: GET /plugins -->
+  Audio | <a href="#" onclick="javascript:showPluginConf('audio', 'pluginconfig')">Configure</a> | <a href="#">Enable</a><br>
+  Serial | <a href="#" onclick="javascript:showPluginConf('serial', 'pluginconfig')">Configure</a> | <a href="#">Disable</a>
+
+  <div id="pluginconfig"></div>
+
+  <h2>Send codes</h2>
+  TODO: plugin, remote, code, repeats
+ </body>
+</html>
