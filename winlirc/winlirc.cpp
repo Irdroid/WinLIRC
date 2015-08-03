@@ -71,38 +71,22 @@ BOOL Cwinlirc::InitInstance() {
 
 	if(!CreateMutex(0,FALSE,mutexName) || GetLastError()==ERROR_ALREADY_EXISTS) {
 
-		//=======
-		HWND tmp;
-		//=======
-
-		tmp=FindWindow(NULL,_T("WinLIRC"));
-
-		if(!tmp)
+		if (auto const winlirc = CWnd::FindWindow(nullptr, _T("WinLIRC")))
 		{
-			MessageBox(NULL,_T("WinLIRC is already running"),_T("WinLIRC"),MB_OK);
+			// bring it to the top
+			auto const last = winlirc->GetLastActivePopup();
+			if(!winlirc->IsWindowVisible()) {
+				winlirc->ShowWindow(SW_SHOW);
+			}
+
+			winlirc->SetForegroundWindow();
+			last->SetForegroundWindow();
 		}
 		else
 		{
-			// bring it to the top
-
-			//===========
-			CWnd winlirc;
-			CWnd *last;
-			//===========
-
-			winlirc.Attach(tmp);
-
-			last = winlirc.GetLastActivePopup();
-
-			if(!winlirc.IsWindowVisible()) {
-				winlirc.ShowWindow(SW_SHOW);
-			}
-
-			winlirc.SetForegroundWindow();
-			last->SetForegroundWindow();
-
-			winlirc.Detach();
+			MessageBox(NULL, _T("WinLIRC is already running"), _T("WinLIRC"), MB_OK);
 		}
+
 		return FALSE;
 	}
 
