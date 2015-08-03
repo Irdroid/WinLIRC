@@ -1,0 +1,3 @@
+[submodule "mongoose"]
+	path = mongoose
+	url = git@github.com:leg0/mongoose.git
