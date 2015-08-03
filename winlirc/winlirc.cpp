@@ -121,18 +121,17 @@ BOOL Cwinlirc::InitInstance() {
     std::thread([=]() { httpServer_.run(); }).detach();
     WL_DEBUG("Creating main dialog...\n");
 
-	dlg = new Cdrvdlg();
+	dlg.reset(new Cdrvdlg());
 
 	if(!dlg->Create(IDD_DIALOG,NULL)) {
-		delete dlg;
-		dlg = NULL;
+		dlg.reset();
 		MessageBox(NULL,_T("Program exiting."),_T("WinLIRC"),MB_OK|MB_ICONERROR);
 		return FALSE;
 	}
 
 	dlg->ShowWindow(SW_HIDE);	
 	dlg->UpdateWindow();
-	m_pMainWnd = dlg;
+	m_pMainWnd = dlg.get();
 	
 	return TRUE;
 }
@@ -140,10 +139,7 @@ BOOL Cwinlirc::InitInstance() {
 int Cwinlirc::ExitInstance()
 {
     httpServer_.stop();
-	if(dlg) {
-		delete dlg;
-		dlg = NULL;
-	}
+    dlg.reset();
 
 	return CWinApp::ExitInstance();
 }

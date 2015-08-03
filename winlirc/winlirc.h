@@ -26,6 +26,7 @@
 #include "drvdlg.h"
 #include "resource.h"
 #include "httpserver.h"
+#include <memory>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -34,7 +35,7 @@
 class Cwinlirc : public CWinApp
 {
 public:
-	Cdrvdlg *dlg;
+	std::unique_ptr<Cdrvdlg> dlg;
 	Cserver server;
 
 	virtual BOOL InitInstance();
